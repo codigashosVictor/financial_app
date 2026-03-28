@@ -132,15 +132,16 @@
         <span class="text-[10px] font-medium text-slate-500 mt-1">Agregar</span>
       </a>
 
-      <a href="/subscriptions/"
+      <a href="/installments/"
         class="flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl
-              {% if '/subscriptions' in request.url.path or '/installments' in request.url.path %}text-brand-400{% else %}text-slate-500{% endif %}">
+                    {% if '/installments' in request.url.path or '/installments' in request.url.path %}text-brand-400{% else %}text-slate-500{% endif %}">
         <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round"
             d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
         </svg>
-        <span class="text-[10px] font-medium">Fijos</span>
+        <span class="text-[10px] font-medium">Meses</span>
       </a>
+
 
       <a href="/ai/" class="flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl
               {% if '/ai' in request.url.path %}text-brand-400{% else %}text-slate-500{% endif %}">
