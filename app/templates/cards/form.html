@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ "Editar" if card else "Nueva" }} Tarjeta{% endblock %}
+
+{% block content %}
+<div class="px-4 pt-6 max-w-lg mx-auto">
+
+  <div class="flex items-center gap-3 mb-6">
+    <a href="/cards/" class="text-slate-500 hover:text-white transition">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+      </svg>
+    </a>
+    <h2 class="text-xl font-bold text-white">
+      {{ "Editar tarjeta" if card else "Nueva tarjeta" }}
+    </h2>
+  </div>
+
+  {% if error %}
+  <div class="mb-4 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  <form method="post" class="space-y-4">
+    <!-- Nombre -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+      <label class="block text-xs font-medium text-slate-400 mb-2">Nombre de la tarjeta</label>
+      <input type="text" name="name" required value="{{ card.name if card else '' }}"
+        placeholder="Ej: Amex Gold, BBVA Azul..." class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500
+                          focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition">
+    </div>
+
+    <!-- Fechas -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-4">
+      <p class="text-xs font-medium text-slate-400 uppercase tracking-wider">Configuración de fechas</p>
+
+      <div>
+        <label class="block text-xs text-slate-500 mb-2">
+          Día de corte
+          <span class="text-slate-600 ml-1">— ¿Qué día del mes cierra tu estado de cuenta?</span>
+        </label>
+        <div class="flex items-center gap-3">
+          <input type="number" name="cut_day" required min="1" max="31" value="{{ card.cut_day if card else '' }}"
+            placeholder="15"
+            class="w-24 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500
+                                  focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition text-center font-bold">
+          <span class="text-slate-500 text-sm">de cada mes</span>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs text-slate-500 mb-2">
+          Día límite de pago
+          <span class="text-slate-600 ml-1">— ¿Hasta qué día puedes pagar sin intereses?</span>
+        </label>
+        <div class="flex items-center gap-3">
+          <input type="number" name="payment_due_day" required min="1" max="31"
+            value="{{ card.payment_due_day if card else '' }}" placeholder="10"
+            class="w-24 bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500
+                                  focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition text-center font-bold">
+          <span class="text-slate-500 text-sm">del mes siguiente</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Límite (opcional) -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+      <label class="block text-xs font-medium text-slate-400 mb-2">
+        Límite de crédito <span class="text-slate-600">(opcional)</span>
+      </label>
+      <div class="relative">
+        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm">$</span>
+        <input type="number" name="credit_limit" step="0.01" min="0"
+          value="{{ card.credit_limit if card and card.credit_limit else '' }}" placeholder="0.00" class="w-full bg-slate-800 border border-slate-700 rounded-xl pl-8 pr-4 py-3 text-sm text-white placeholder-slate-500
+                              focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition">
+      </div>
+    </div>
+
+    <button type="submit"
+      class="w-full bg-sky-500 hover:bg-sky-400 text-white font-semibold py-3.5 rounded-xl transition">
+      {{ "Guardar cambios" if card else "Crear tarjeta" }}
+    </button>
+  </form>
+</div>
+{% endblock %}

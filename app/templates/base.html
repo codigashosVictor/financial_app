@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>{% block title %}Finance App{% endblock %}</title>
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              600: '#0284c7',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Alpine.js -->
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+
+  <!-- Plotly -->
+  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+
+  <!-- Inter font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* Safe area para iPhone con notch */
+    .safe-top {
+      padding-top: env(safe-area-inset-top);
+    }
+
+    .safe-bottom {
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    /* Scrollbar dark */
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #1e293b;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 2px;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-950 text-slate-100 min-h-screen" x-data="{ mobileMenu: false }">
+
+  <!-- ── TOP NAV (solo desktop) ── -->
+  <nav
+    class="hidden md:flex fixed top-0 left-0 right-0 z-50 bg-slate-900/80 backdrop-blur border-b border-slate-800 px-6 h-14 items-center justify-between">
+    <span class="font-semibold text-brand-400 tracking-tight">💳 FinanceApp</span>
+    <div class="flex gap-6 text-sm text-slate-400">
+      <a href="/"
+        class="hover:text-white transition {% if request.url.path == '/' %}text-white font-medium{% endif %}">Dashboard</a>
+      <a href="/cards/"
+        class="hover:text-white transition {% if '/cards' in request.url.path %}text-white font-medium{% endif %}">Tarjetas</a>
+      <a href="/expenses/"
+        class="hover:text-white transition {% if '/expenses' in request.url.path %}text-white font-medium{% endif %}">Gastos</a>
+      <a href="/ai/"
+        class="hover:text-white transition {% if '/ai' in request.url.path %}text-white font-medium{% endif %}">Asistente
+        IA</a>
+    </div>
+    <a href="/logout" class="text-xs text-slate-500 hover:text-red-400 transition">Salir</a>
+  </nav>
+
+  <!-- ── CONTENIDO ── -->
+  <main class="md:pt-14 pb-20 md:pb-6 min-h-screen">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- ── BOTTOM NAV (mobile) ── -->
+  <nav
+    class="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-slate-900/95 backdrop-blur border-t border-slate-800 safe-bottom">
+    <div class="flex justify-around py-2">
+      <a href="/" class="flex flex-col items-center gap-0.5 px-4 py-1 rounded-xl
+                {% if request.url.path == '/' %}text-brand-400{% else %}text-slate-500{% endif %}">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+        </svg>
+        <span class="text-[10px] font-medium">Inicio</span>
+      </a>
+      <a href="/cards/" class="flex flex-col items-center gap-0.5 px-4 py-1 rounded-xl
+                {% if '/cards' in request.url.path %}text-brand-400{% else %}text-slate-500{% endif %}">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+        </svg>
+        <span class="text-[10px] font-medium">Tarjetas</span>
+      </a>
+      <!-- Botón central flotante: agregar gasto -->
+      <a href="/expenses/nuevo" class="flex flex-col items-center -mt-5">
+        <div
+          class="w-14 h-14 rounded-full bg-brand-500 flex items-center justify-center shadow-lg shadow-brand-500/40 border-4 border-slate-950">
+          <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+        </div>
+        <span class="text-[10px] font-medium text-slate-500 mt-1">Agregar</span>
+      </a>
+      <a href="/expenses/" class="flex flex-col items-center gap-0.5 px-4 py-1 rounded-xl
+                {% if request.url.path == '/expenses/' %}text-brand-400{% else %}text-slate-500{% endif %}">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+        <span class="text-[10px] font-medium">Gastos</span>
+      </a>
+      <a href="/ai/" class="flex flex-col items-center gap-0.5 px-4 py-1 rounded-xl
+                {% if '/ai' in request.url.path %}text-brand-400{% else %}text-slate-500{% endif %}">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round"
+            d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+        </svg>
+        <span class="text-[10px] font-medium">IA</span>
+      </a>
+    </div>
+  </nav>
+
+</body>
+
+</html>

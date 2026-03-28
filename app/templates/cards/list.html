@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Tarjetas{% endblock %}
+
+{% block content %}
+<div class="px-4 pt-6 max-w-lg mx-auto">
+
+  <div class="flex items-center justify-between mb-6">
+    <h2 class="text-xl font-bold text-white">Mis Tarjetas</h2>
+    <a href="/cards/nuevo"
+      class="bg-sky-500 hover:bg-sky-400 text-white text-sm font-medium px-4 py-2 rounded-xl transition">
+      + Nueva
+    </a>
+  </div>
+
+  {% if cards %}
+  <div class="space-y-3">
+    {% for card in cards %}
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+      <!-- Header tarjeta -->
+      <div class="flex items-start justify-between mb-4">
+        <div>
+          <p class="font-semibold text-white text-base">{{ card.name }}</p>
+          {% if card.credit_limit %}
+          <p class="text-xs text-slate-500 mt-0.5">Límite: ${{ "{:,.2f}".format(card.credit_limit) }}</p>
+          {% endif %}
+        </div>
+        <div class="w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center">
+          <svg class="w-5 h-5 text-sky-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+          </svg>
+        </div>
+      </div>
+
+      <!-- Fechas -->
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="bg-slate-800/50 rounded-xl p-3">
+          <p class="text-xs text-slate-500 mb-1">Día de corte</p>
+          <p class="text-lg font-bold text-white">{{ card.cut_day }}</p>
+          <p class="text-xs text-slate-600">de cada mes</p>
+        </div>
+        <div class="bg-slate-800/50 rounded-xl p-3">
+          <p class="text-xs text-slate-500 mb-1">Límite de pago</p>
+          <p class="text-lg font-bold text-emerald-400">{{ card.payment_due_day }}</p>
+          <p class="text-xs text-slate-600">del mes siguiente</p>
+        </div>
+      </div>
+
+      <!-- Acciones -->
+      <div class="flex gap-2">
+        <a href="/cards/{{ card.id }}/editar"
+          class="flex-1 text-center text-sm text-slate-400 border border-slate-700 hover:border-slate-500 py-2 rounded-xl transition">
+          Editar
+        </a>
+        <form method="post" action="/cards/{{ card.id }}/eliminar"
+          onsubmit="return confirm('¿Eliminar {{ card.name }}?')">
+          <button type="submit"
+            class="text-sm text-red-400 border border-red-500/20 hover:border-red-500/50 px-4 py-2 rounded-xl transition">
+            Eliminar
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="bg-slate-900 border border-dashed border-slate-700 rounded-2xl p-10 text-center">
+    <div class="w-14 h-14 rounded-2xl bg-slate-800 flex items-center justify-center mx-auto mb-4">
+      <svg class="w-7 h-7 text-slate-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+      </svg>
+    </div>
+    <p class="text-slate-400 font-medium mb-1">Sin tarjetas registradas</p>
+    <p class="text-slate-600 text-sm mb-4">Agrega tu primera tarjeta de crédito</p>
+    <a href="/cards/nuevo"
+      class="inline-block bg-sky-500 hover:bg-sky-400 text-white text-sm font-medium px-6 py-2.5 rounded-xl transition">
+      + Agregar tarjeta
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

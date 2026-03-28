@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Asistente IA{% endblock %}
+
+{% block content %}
+<div class="px-4 pt-6 max-w-lg mx-auto" x-data="aiAssistant()" x-init="init()">
+
+  <div class="mb-6">
+    <h2 class="text-xl font-bold text-white">Asistente IA 🤖</h2>
+    <p class="text-slate-500 text-sm mt-1">Estrategia inteligente para tus tarjetas</p>
+  </div>
+
+  <!-- Resumen de tarjetas -->
+  <div class="space-y-2 mb-6">
+    <template x-for="card in cards" :key="card.id">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 flex items-center justify-between">
+        <div>
+          <p class="text-sm font-medium text-white" x-text="card.name"></p>
+          <p class="text-xs text-slate-500 mt-0.5">
+            Corte día <span x-text="card.cut_day"></span> ·
+            Pago día <span x-text="card.payment_due_day"></span>
+          </p>
+        </div>
+        <div class="text-right">
+          <p class="text-sm font-semibold text-white"
+            x-text="'$' + card.total_current_period.toLocaleString('es-MX', {minimumFractionDigits:2})"></p>
+          <p class="text-xs text-slate-600">este periodo</p>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- Selector de estrategia -->
+  <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4">
+    <p class="text-xs font-medium text-slate-400 mb-3 uppercase tracking-wider">Tipo de análisis</p>
+    <div class="grid grid-cols-3 gap-2">
+      <template x-for="opt in strategies" :key="opt.value">
+        <button type="button" @click="selected = opt.value" :class="selected === opt.value
+                            ? 'bg-sky-500/10 border-sky-500/50 text-sky-400'
+                            : 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'"
+          class="flex flex-col items-center gap-1.5 p-3 rounded-xl border transition text-center">
+          <span class="text-2xl" x-text="opt.emoji"></span>
+          <span class="text-[11px] font-medium leading-tight" x-text="opt.label"></span>
+        </button>
+      </template>
+    </div>
+    <p class="text-xs text-slate-600 mt-3" x-text="strategies.find(s => s.value === selected)?.description"></p>
+  </div>
+
+  <!-- Botón analizar -->
+  <button @click="analyze()" :disabled="loading" class="w-full bg-violet-500 hover:bg-violet-400 disabled:opacity-40 disabled:cursor-not-allowed
+                   text-white font-semibold py-3.5 rounded-xl transition mb-6
+                   flex items-center justify-center gap-2">
+    <svg x-show="loading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+    </svg>
+    <span x-text="loading ? 'Consultando a Gemini...' : '✨ Analizar mis finanzas'"></span>
+  </button>
+
+  <!-- Respuesta IA -->
+  <div x-show="aiResponse" x-transition class="bg-gradient-to-br from-violet-500/10 to-sky-500/5 border border-violet-500/20
+                rounded-2xl p-5 mb-6">
+    <div class="flex items-center gap-2 mb-3">
+      <div class="w-7 h-7 rounded-full bg-violet-500/20 flex items-center justify-center text-sm">🤖</div>
+      <p class="text-sm font-semibold text-violet-300">Recomendación de Gemini</p>
+    </div>
+    <div class="text-sm text-slate-300 leading-relaxed whitespace-pre-line" x-text="aiResponse"></div>
+  </div>
+
+  <!-- Error -->
+  <div x-show="error" class="px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm mb-4"
+    x-text="error"></div>
+
+  <!-- Historial -->
+  {% if logs %}
+  <div>
+    <h3 class="text-sm font-semibold text-slate-400 mb-3">Consultas anteriores</h3>
+    <div class="space-y-2">
+      {% for log in logs %}
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-4">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-medium text-slate-500">{{ log.strategy_type }}</span>
+          <span class="text-xs text-slate-600">
+            {{ log.created_at[:10] }}
+          </span>
+        </div>
+        <p class="text-sm text-slate-400 leading-relaxed line-clamp-3">{{ log.ai_response }}</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+  function aiAssistant() {
+    return {
+      cards: [],
+      selected: 'recommendation',
+      loading: false,
+      aiResponse: '',
+      error: '',
+      strategies: [
+        {
+          value: 'recommendation',
+          emoji: '💡',
+          label: '¿Qué tarjeta usar?',
+          description: 'Te digo qué tarjeta conviene usar hoy según tus fechas de corte para maximizar días de gracia.'
+        },
+        {
+          value: 'snowball',
+          emoji: '⛄',
+          label: 'Bola de nieve',
+          description: 'Paga primero la tarjeta con menor saldo para eliminarla rápido y liberar flujo.'
+        },
+        {
+          value: 'avalanche',
+          emoji: '🏔️',
+          label: 'Avalancha',
+          description: 'Prioriza la tarjeta con pago más urgente para evitar intereses.'
+        },
+      ],
+
+      async init() {
+        try {
+          const res = await fetch('/ai/data')
+          const data = await res.json()
+          this.cards = data.cards || []
+        } catch (e) {
+          console.error(e)
+        }
+      },
+
+      async analyze() {
+        this.loading = true
+        this.aiResponse = ''
+        this.error = ''
+
+        try {
+          const form = new FormData()
+          form.append('strategy_type', this.selected)
+
+          const res = await fetch('/ai/analyze', { method: 'POST', body: form })
+          const data = await res.json()
+
+          if (data.error) {
+            this.error = data.error
+          } else {
+            this.aiResponse = data.response
+          }
+        } catch (e) {
+          this.error = 'Error de conexión. Intenta de nuevo.'
+        } finally {
+          this.loading = false
+        }
+      }
+    }
+  }
+</script>
+{% endblock %}

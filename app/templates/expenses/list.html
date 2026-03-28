@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Gastos{% endblock %}
+
+{% block content %}
+<div class="px-4 pt-6 max-w-lg mx-auto">
+
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-xl font-bold text-white">Gastos</h2>
+    <div class="flex gap-2">
+      <a href="/expenses/scan"
+        class="bg-violet-500/10 border border-violet-500/30 text-violet-400 text-sm font-medium px-3 py-2 rounded-xl transition hover:bg-violet-500/20">
+        📷 Ticket
+      </a>
+      <a href="/expenses/nuevo"
+        class="bg-sky-500 hover:bg-sky-400 text-white text-sm font-medium px-3 py-2 rounded-xl transition">
+        + Manual
+      </a>
+    </div>
+  </div>
+
+  <!-- Filtros -->
+  <form method="get" class="flex gap-2 mb-4">
+    <input type="month" name="period" value="{{ current_period }}" class="flex-1 bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-white
+                      focus:outline-none focus:border-sky-500 transition">
+    <select name="card_id" class="bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-300
+                       focus:outline-none focus:border-sky-500 transition">
+      <option value="">Todas</option>
+      {% for card in cards %}
+      <option value="{{ card.id }}" {% if selected_card==card.id %}selected{% endif %}>
+        {{ card.name }}
+      </option>
+      {% endfor %}
+    </select>
+    <button type="submit" class="bg-slate-800 hover:bg-slate-700 text-white px-3 py-2 rounded-xl transition text-sm">
+      ↵
+    </button>
+  </form>
+
+  <!-- Total periodo -->
+  <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4 flex items-center justify-between">
+    <div>
+      <p class="text-xs text-slate-500">Total {{ current_period }}</p>
+      <p class="text-2xl font-bold text-white">${{ "{:,.2f}".format(total) }}</p>
+    </div>
+    <div class="text-3xl">💳</div>
+  </div>
+
+  <!-- Lista de gastos -->
+  {% if expenses %}
+  <div class="space-y-2">
+    {% for exp in expenses %}
+    <div class="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-lg shrink-0">
+            {% set cat_emoji = {
+            'Alimentación': '🍔', 'Transporte': '🚗', 'Entretenimiento': '🎬',
+            'Salud': '💊', 'Ropa': '👕', 'Tecnología': '💻',
+            'Hogar': '🏠', 'Otro': '📦'
+            } %}
+            {{ cat_emoji.get(exp.category, '📦') }}
+          </div>
+          <div class="min-w-0">
+            <p class="text-sm font-medium text-white truncate">{{ exp.merchant or "Sin nombre" }}</p>
+            <div class="flex items-center gap-2 mt-0.5">
+              <span class="text-xs text-slate-500">{{ exp.category or "Sin categoría" }}</span>
+              {% if exp.credit_cards %}
+              <span class="text-slate-700">·</span>
+              <span class="text-xs text-slate-600">{{ exp.credit_cards.name }}</span>
+              {% endif %}
+              {% if exp.source == 'ocr' %}
+              <span class="text-xs bg-violet-500/10 text-violet-400 px-1.5 py-0.5 rounded-md">OCR</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="text-right shrink-0 ml-3">
+          <p class="text-sm font-semibold text-white">${{ "{:,.2f}".format(exp.amount) }}</p>
+          <p class="text-xs text-slate-500">{{ exp.expense_date }}</p>
+        </div>
+      </div>
+      <!-- Eliminar -->
+      <div class="mt-2 flex justify-end">
+        <form method="post" action="/expenses/{{ exp.id }}/eliminar" onsubmit="return confirm('¿Eliminar este gasto?')">
+          <button type="submit" class="text-xs text-red-500/60 hover:text-red-400 transition">
+            Eliminar
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="bg-slate-900 border border-dashed border-slate-700 rounded-2xl p-10 text-center">
+    <p class="text-slate-400 font-medium mb-1">Sin gastos en este periodo</p>
+    <p class="text-slate-600 text-sm">Agrega un gasto manual o escanea un ticket</p>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
