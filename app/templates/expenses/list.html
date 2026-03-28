@@ -54,9 +54,23 @@
         <div class="flex items-center gap-3 min-w-0">
           <div class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-lg shrink-0">
             {% set cat_emoji = {
-            'Alimentación': '🍔', 'Transporte': '🚗', 'Entretenimiento': '🎬',
-            'Salud': '💊', 'Ropa': '👕', 'Tecnología': '💻',
-            'Hogar': '🏠', 'Otro': '📦'
+            'Alimentación': '🍔',
+            'Mandado': '🛒',
+            'Carro': '🚗',
+            'Gasolina': '⛽',
+            'Entretenimiento': '🎬',
+            'Salud': '💊',
+            'Ropa': '👕',
+            'Tecnología': '💻',
+            'Hogar': '🏠',
+            'Educación': '🎓',
+            'Cita Bby': '💑',
+            'Vacaciones': '🌴',
+            'Servicios': '⚡',
+            'Regalos': '🎁',
+            'Seguros/Mtto': '🛡️',
+            'Inversión': '📈',
+            'Otro': '📦',
             } %}
             {{ cat_emoji.get(exp.category, '📦') }}
           </div>
