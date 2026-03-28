@@ -16,7 +16,7 @@ async def login_page(request: Request):
 @router.post("/login")
 async def login(request: Request, email: str = Form(...), password: str = Form(...)):
     try:
-        supabase = get_supabase(user["access_token"])
+        supabase = get_supabase()
         response = supabase.auth.sign_in_with_password({"email": email, "password": password})
         request.session["user"] = {
             "id": response.user.id,
