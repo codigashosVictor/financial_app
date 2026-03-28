@@ -180,31 +180,30 @@
 
       async analyze() {
         if (!this.imageFile) return
-        this.loading = true
         this.ocrError = null
+        // Loading ya se activa desde el fetch interceptado
 
         try {
           const formData = new FormData()
           formData.append('image', this.imageFile)
 
-          const res = await fetch('/expenses/ocr', {
-            method: 'POST',
-            body: formData
-          })
+          const res = await fetch('/expenses/ocr', { method: 'POST', body: formData })
           const data = await res.json()
+
+          Loading.hide()
 
           if (data.error) {
             this.ocrError = `Error: ${data.error}`
           } else {
             this.ocr = data
             this.step = 2
+            Toast.show('✨ Ticket analizado correctamente')
           }
         } catch (e) {
+          Loading.hide()
           this.ocrError = 'Error de conexión. Intenta de nuevo.'
-        } finally {
-          this.loading = false
         }
-      }
+      },
     }
   }
 </script>

@@ -6,6 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from app.config import settings
 from app.api import auth, cards, expenses, dashboard, ai_assistant
+from app.api import subscriptions, installments
+
 
 app = FastAPI(title="Finance App", version="1.0.0")
 
@@ -20,6 +22,9 @@ app.include_router(cards.router, prefix="/cards", tags=["cards"])
 app.include_router(expenses.router, prefix="/expenses", tags=["expenses"])
 app.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
 app.include_router(ai_assistant.router, prefix="/ai", tags=["ai"])
+app.include_router(subscriptions.router, prefix="/subscriptions", tags=["subscriptions"])
+app.include_router(installments.router, prefix="/installments", tags=["installments"])
+
 
 @app.get("/")
 async def root(request: Request):

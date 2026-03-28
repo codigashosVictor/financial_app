@@ -133,7 +133,6 @@
       },
 
       async analyze() {
-        this.loading = true
         this.aiResponse = ''
         this.error = ''
 
@@ -144,15 +143,17 @@
           const res = await fetch('/ai/analyze', { method: 'POST', body: form })
           const data = await res.json()
 
+          Loading.hide()
+
           if (data.error) {
             this.error = data.error
           } else {
             this.aiResponse = data.response
+            Toast.show('✨ Análisis completado')
           }
         } catch (e) {
+          Loading.hide()
           this.error = 'Error de conexión. Intenta de nuevo.'
-        } finally {
-          this.loading = false
         }
       }
     }

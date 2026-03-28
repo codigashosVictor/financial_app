@@ -29,7 +29,7 @@ async def process_receipt_image(image_bytes: bytes, mime_type: str = "image/jpeg
     """
     Envía imagen a Gemini y retorna datos estructurados del ticket.
     """
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    model = genai.GenerativeModel("gemini-2.5-flash")
 
     image_part = {
         "inline_data": {

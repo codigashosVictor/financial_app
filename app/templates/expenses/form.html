@@ -72,8 +72,23 @@
       <label class="block text-xs font-medium text-slate-400 mb-3">Categoría</label>
       <div class="grid grid-cols-4 gap-2" x-data="{ selected: 'Otro' }">
         {% set categories = [
-        ('Alimentación','🍔'), ('Transporte','🚗'), ('Entretenimiento','🎬'),
-        ('Salud','💊'), ('Ropa','👕'), ('Tecnología','💻'), ('Hogar','🏠'), ('Otro','📦')
+        ('Alimentación','🍔'),
+        ('Mandado','🛒'),
+        ('Carro','🚗'),
+        ('Gasolina','⛽'),
+        ('Entretenimiento','🎬'),
+        ('Salud','💊'),
+        ('Ropa','👕'),
+        ('Tecnología','💻'),
+        ('Hogar','🏠'),
+        ('Educación','🎓'),
+        ('Cita Bby','💑'),
+        ('Vacaciones', '🌴'),
+        ('Servicios', '⚡'),
+        ('Regalos', '🎁'),
+        ('Seguros/Mtto', '🛡️'),
+        ('Inversión', '📈'),
+        ('Otro','📦')
         ] %}
         {% for cat, emoji in categories %}
         <label class="cursor-pointer">
