@@ -164,6 +164,7 @@
       async loadData() {
         try {
           const res = await fetch('/dashboard/data')
+          if (!res) return
           const d = await res.json()
           this.cards = d.cards || []
           this.recentExpenses = d.recent_expenses || []

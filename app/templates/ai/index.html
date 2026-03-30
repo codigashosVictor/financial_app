@@ -125,6 +125,7 @@
       async init() {
         try {
           const res = await fetch('/ai/data')
+          if (!res) return
           const data = await res.json()
           this.cards = data.cards || []
         } catch (e) {

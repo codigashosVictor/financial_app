@@ -321,6 +321,25 @@
     // ── Exponer globalmente para Alpine ──────────────────────────
     window.Loading = Loading
     window.Toast = Toast
+
+    // ── Manejo global de sesión expirada ─────────────────────────
+    async function safeFetch(url, options = {}) {
+      try {
+        const res = await fetch(url, options)
+        if (res.status === 401) {
+          Loading.show('Sesión expirada', 'Redirigiendo al login...')
+          setTimeout(() => { window.location.href = '/login' }, 1000)
+          return null
+        }
+        return res
+      } catch (e) {
+        Loading.hide()
+        return null
+      }
+    }
+
+    // Sobrescribir fetch en las páginas para usar safeFetch
+    window.safeFetch = safeFetch
   </script>
 </body>
 
