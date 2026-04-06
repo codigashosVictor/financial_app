@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Presupuestos{% endblock %}
+
+{% block content %}
+<div class="px-4 pt-6 max-w-lg mx-auto" x-data="{ editing: false, copying: false }">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h2 class="text-xl font-bold text-white">Presupuestos</h2>
+      <p class="text-xs text-slate-500 mt-0.5">{{ current_period }}</p>
+    </div>
+    <div class="flex gap-2">
+      <!-- Copiar mes anterior -->
+      <button @click="copying = !copying" class="text-xs text-slate-400 border border-slate-700 hover:border-slate-500
+                           px-3 py-2 rounded-xl transition">
+        📋 Copiar
+      </button>
+      <button @click="editing = !editing" :class="editing
+                        ? 'bg-sky-500 text-white border-sky-500'
+                        : 'text-slate-400 border-slate-700 hover:border-slate-500'"
+        class="text-xs border px-3 py-2 rounded-xl transition">
+        <span x-text="editing ? '✓ Listo' : '✏️ Editar'"></span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Panel copiar mes -->
+  <div x-show="copying" x-transition class="bg-slate-900 border border-slate-700 rounded-2xl p-4 mb-4">
+    <p class="text-sm font-medium text-white mb-3">Copiar presupuesto de otro mes</p>
+    <form method="post" action="/budgets/copy" class="flex gap-2">
+      <input type="month" name="from_period" class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2
+                          text-sm text-white focus:outline-none focus:border-sky-500 transition">
+      <input type="hidden" name="to_period" value="{{ current_period }}">
+      <button type="submit" class="bg-sky-500 hover:bg-sky-400 text-white text-sm px-4 py-2 rounded-xl transition">
+        Copiar
+      </button>
+    </form>
+    <p class="text-xs text-slate-600 mt-2">
+      Se copiarán los montos al periodo {{ current_period }}
+    </p>
+  </div>
+
+  <!-- Resumen global -->
+  <div class="grid grid-cols-2 gap-3 mb-6">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+      <p class="text-xs text-slate-500 mb-1">Total presupuestado</p>
+      <p class="text-2xl font-bold text-white">
+        ${{ "{:,.0f}".format(total_budgeted) }}
+      </p>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+      <p class="text-xs text-slate-500 mb-1">Total gastado</p>
+      <p class="text-2xl font-bold
+                {% if total_spent > total_budgeted and total_budgeted > 0 %}text-red-400
+                {% elif total_budgeted > 0 and (total_spent / total_budgeted) >= 0.8 %}text-amber-400
+                {% else %}text-emerald-400{% endif %}">
+        ${{ "{:,.0f}".format(total_spent) }}
+      </p>
+    </div>
+  </div>
+
+  <!-- Navegación de periodo -->
+  <div class="flex items-center justify-between mb-4">
+    {% set parts = current_period.split('-') %}
+    {% set year = parts[0]|int %}
+    {% set month = parts[1]|int %}
+    {% set prev_month = month - 1 if month > 1 else 12 %}
+    {% set prev_year = year if month > 1 else year - 1 %}
+    {% set next_month = month + 1 if month < 12 else 1 %} {% set next_year=year if month < 12 else year + 1 %} <a
+      href="/budgets/?period={{ '%04d-%02d' % (prev_year, prev_month) }}"
+      class="text-slate-500 hover:text-white transition px-3 py-2 rounded-xl hover:bg-slate-800">
+      ← Anterior
+      </a>
+      <span class="text-sm font-medium text-slate-300">{{ current_period }}</span>
+      <a href="/budgets/?period={{ '%04d-%02d' % (next_year, next_month) }}"
+        class="text-slate-500 hover:text-white transition px-3 py-2 rounded-xl hover:bg-slate-800">
+        Siguiente →
+      </a>
+  </div>
+
+  <!-- Form de presupuestos -->
+  <form method="post" action="/budgets/save" x-ref="budgetForm">
+    <input type="hidden" name="period" value="{{ current_period }}">
+
+    <div class="space-y-3">
+      {% for cat in categories %}
+      <div class="bg-slate-900 border rounded-2xl p-4 transition
+                        {% if cat.status == 'over' %}border-red-500/40
+                        {% elif cat.status == 'warning' %}border-amber-500/30
+                        {% else %}border-slate-800{% endif %}">
+
+        <div class="flex items-center justify-between mb-2">
+          <!-- Nombre + emoji -->
+          <div class="flex items-center gap-2">
+            <span class="text-xl">{{ cat.emoji }}</span>
+            <span class="text-sm font-medium text-white">{{ cat.name }}</span>
+            {% if cat.status == 'over' %}
+            <span class="text-xs bg-red-500/10 text-red-400 px-2 py-0.5 rounded-full">
+              +${{ "{:,.0f}".format(cat.overflow) }} excedido
+            </span>
+            {% elif cat.status == 'warning' %}
+            <span class="text-xs bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full">
+              {{ cat.pct }}% usado
+            </span>
+            {% endif %}
+          </div>
+
+          <!-- Monto gastado / presupuestado -->
+          <div class="text-right">
+            <span class="text-sm font-semibold
+                            {% if cat.status == 'over' %}text-red-400
+                            {% elif cat.status == 'warning' %}text-amber-400
+                            {% else %}text-white{% endif %}">
+              ${{ "{:,.0f}".format(cat.spent) }}
+            </span>
+            {% if cat.has_budget %}
+            <span class="text-xs text-slate-600">
+              / ${{ "{:,.0f}".format(cat.budgeted) }}
+            </span>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Barra de progreso -->
+        {% if cat.has_budget %}
+        <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden mb-2">
+          <div class="h-full rounded-full transition-all
+                                {% if cat.status == 'over' %}bg-red-500
+                                {% elif cat.status == 'warning' %}bg-amber-500
+                                {% else %}bg-emerald-500{% endif %}" style="width: {{ cat.pct }}%">
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Input editable -->
+        <div x-show="editing" x-transition class="mt-2">
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">$</span>
+            <input type="number" name="budget_{{ cat.name }}" value="{{ cat.budgeted if cat.has_budget else '' }}"
+              placeholder="Sin presupuesto" step="100" min="0" class="w-full bg-slate-800 border border-slate-700 rounded-xl
+                                      pl-6 pr-3 py-2 text-sm text-white placeholder-slate-600
+                                      focus:outline-none focus:border-sky-500 transition">
+          </div>
+        </div>
+
+        <!-- Disponible (solo si tiene presupuesto y no excedió) -->
+        {% if cat.has_budget and cat.status != 'over' %}
+        <p class="text-xs text-slate-600 mt-1">
+          Disponible: ${{ "{:,.0f}".format(cat.remaining) }}
+        </p>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Botón guardar (solo en modo edición) -->
+    <div x-show="editing" x-transition class="mt-4">
+      <button type="submit" class="w-full bg-sky-500 hover:bg-sky-400 text-white font-semibold
+                           py-3.5 rounded-xl transition">
+        Guardar presupuestos
+      </button>
+    </div>
+  </form>
+
+</div>
+{% endblock %}

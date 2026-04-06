@@ -4,35 +4,15 @@
 {% block content %}
 <div class="px-4 pt-6 max-w-lg mx-auto" x-data="dashboard()" x-init="init()">
 
-  <!-- Saludo + periodo -->
+  <!-- Saludo -->
   <div class="flex items-start justify-between mb-6">
     <div>
       <p class="text-slate-500 text-sm">Bienvenido 👋</p>
       <h2 class="text-xl font-bold text-white">{{ user.email.split('@')[0] | title }}</h2>
     </div>
     <div class="text-right">
-      <p class="text-xs text-slate-600">Periodo</p>
+      <p class="text-xs text-slate-600">Periodo activo</p>
       <p class="text-sm font-medium text-slate-400" x-text="currentPeriod">—</p>
-    </div>
-  </div>
-
-  <!-- Cards de resumen -->
-  <div class="grid grid-cols-2 gap-3 mb-6">
-    <!-- Total mes -->
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-      <p class="text-xs text-slate-500 mb-1">Gasto del periodo</p>
-      <p class="text-2xl font-bold text-white"
-        x-text="'$' + totalMonth.toLocaleString('es-MX', {minimumFractionDigits:2})">$0.00</p>
-      <p class="text-xs text-slate-600 mt-1">en todas las tarjetas</p>
-    </div>
-    <!-- Próximo pago -->
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-      <p class="text-xs text-slate-500 mb-1">Próximo pago</p>
-      <p class="text-2xl font-bold"
-        :class="daysUntilDue <= 5 ? 'text-red-400' : daysUntilDue <= 10 ? 'text-amber-400' : 'text-emerald-400'"
-        x-text="daysUntilDue > 0 ? daysUntilDue + 'd' : '—'">—</p>
-      <p class="text-xs text-slate-600 mt-1" x-text="nextDueDate || 'Sin tarjetas'"></p>
-      <p class="text-xs text-slate-700 mt-0.5 truncate" x-text="urgentCard"></p>
     </div>
   </div>
 
@@ -42,12 +22,150 @@
     <span class="text-xl">🚨</span>
     <div>
       <p class="text-sm font-semibold text-red-400">Pago urgente</p>
-      <p class="text-xs text-slate-400"><span x-text="urgentCard"></span> vence en <span x-text="daysUntilDue"></span>
-        días</p>
+      <p class="text-xs text-slate-400">
+        <span x-text="urgentCard"></span> vence en
+        <span x-text="daysUntilDue"></span> días —
+        <span x-text="nextDueDate"></span>
+      </p>
     </div>
   </div>
 
-  <!-- Gráfica donut categorías -->
+  <!-- Cards resumen -->
+  <div class="grid grid-cols-2 gap-3 mb-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+      <p class="text-xs text-slate-500 mb-1">Gastado</p>
+      <p class="text-2xl font-bold text-white" x-text="fmt(totalMonth)">$0</p>
+      <p class="text-xs text-slate-600 mt-1">este periodo</p>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+      <p class="text-xs text-slate-500 mb-1">Próximo pago</p>
+      <p class="text-2xl font-bold"
+        :class="daysUntilDue <= 5 ? 'text-red-400' : daysUntilDue <= 10 ? 'text-amber-400' : 'text-emerald-400'"
+        x-text="daysUntilDue > 0 ? daysUntilDue + 'd' : '—'">—</p>
+      <p class="text-xs text-slate-600 mt-1" x-text="nextDueDate || 'Sin tarjetas'"></p>
+    </div>
+  </div>
+
+  <!-- ── PROYECCIÓN ──────────────────────────────────────── -->
+  <div x-show="projection.days_total > 0" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-sm font-semibold text-white">Proyección del mes</h3>
+      <span class="text-xs text-slate-500"
+        x-text="projection.days_elapsed + '/' + projection.days_total + ' días'"></span>
+    </div>
+
+    <!-- Barra de progreso del periodo -->
+    <div class="mb-4">
+      <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+        <div class="h-full bg-sky-500 rounded-full transition-all" :style="`width: ${projection.pct_period}%`"></div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-2">
+      <div class="bg-slate-800/50 rounded-xl p-3 text-center">
+        <p class="text-xs text-slate-500 mb-1">Gastado</p>
+        <p class="text-sm font-bold text-white" x-text="fmt(totalMonth)"></p>
+      </div>
+      <div class="bg-slate-800/50 rounded-xl p-3 text-center">
+        <p class="text-xs text-slate-500 mb-1">Proyectado</p>
+        <p class="text-sm font-bold"
+          :class="projection.projected > totalMonth * 1.2 ? 'text-red-400' : 'text-amber-400'"
+          x-text="fmt(projection.projected)"></p>
+      </div>
+      <div class="bg-slate-800/50 rounded-xl p-3 text-center">
+        <p class="text-xs text-slate-500 mb-1">Promedio/día</p>
+        <p class="text-sm font-bold text-slate-300" x-text="fmt(projection.daily_avg)"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── COMPARATIVA MES A MES ───────────────────────────── -->
+  <div x-show="comparison.changes && comparison.changes.length > 0"
+    class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-sm font-semibold text-white">vs mes anterior</h3>
+      <!-- Badge total -->
+      <div class="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold" :class="comparison.total_direction === 'up'
+                     ? 'bg-red-500/10 text-red-400'
+                     : 'bg-emerald-500/10 text-emerald-400'">
+        <span x-text="comparison.total_direction === 'up' ? '↑' : '↓'"></span>
+        <span x-text="Math.abs(comparison.total_pct_change) + '%'"></span>
+        <span class="text-slate-500 font-normal ml-1">total</span>
+      </div>
+    </div>
+
+    <!-- Fila totales -->
+    <div class="flex items-center justify-between mb-3 pb-3 border-b border-slate-800">
+      <div>
+        <p class="text-xs text-slate-500">Mes anterior</p>
+        <p class="text-sm font-semibold text-slate-400" x-text="fmt(comparison.total_previous)"></p>
+      </div>
+      <svg class="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+      </svg>
+      <div class="text-right">
+        <p class="text-xs text-slate-500">Este periodo</p>
+        <p class="text-sm font-semibold text-white" x-text="fmt(comparison.total_current)"></p>
+      </div>
+    </div>
+
+    <!-- Por categoría -->
+    <div class="space-y-2">
+      <template x-for="item in comparison.changes" :key="item.category">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2 min-w-0">
+            <span x-text="catEmoji(item.category)" class="text-base shrink-0"></span>
+            <span class="text-xs text-slate-400 truncate" x-text="item.category"></span>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="text-xs text-slate-600" x-text="fmt(item.previous)"></span>
+            <span class="text-xs font-semibold px-1.5 py-0.5 rounded-md" :class="item.direction === 'up'
+                                  ? 'bg-red-500/10 text-red-400'
+                                  : 'bg-emerald-500/10 text-emerald-400'">
+              <span x-text="item.direction === 'up' ? '↑' : '↓'"></span>
+              <span x-text="Math.abs(item.pct_change) + '%'"></span>
+            </span>
+            <span class="text-xs font-medium text-white w-16 text-right" x-text="fmt(item.current)"></span>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- ── PRESUPUESTOS RÁPIDOS ────────────────────────────── -->
+  <div x-show="budgets.length > 0" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-sm font-semibold text-white">Presupuestos</h3>
+      <a href="/budgets/" class="text-xs text-sky-400 hover:text-sky-300 transition">
+        Gestionar →
+      </a>
+    </div>
+    <div class="space-y-3">
+      <template x-for="b in budgets" :key="b.category">
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <div class="flex items-center gap-1.5">
+              <span x-text="b.emoji" class="text-sm"></span>
+              <span class="text-xs text-slate-400" x-text="b.category"></span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <span class="text-xs font-medium" :class="b.status==='over' ? 'text-red-400' :
+                                      b.status==='warning' ? 'text-amber-400' : 'text-slate-300'"
+                x-text="fmt(b.spent)"></span>
+              <span class="text-xs text-slate-600" x-text="'/ ' + fmt(b.budgeted)"></span>
+            </div>
+          </div>
+          <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+            <div class="h-full rounded-full transition-all" :class="b.status==='over' ? 'bg-red-500' :
+                                 b.status==='warning' ? 'bg-amber-500' : 'bg-emerald-500'" :style="`width: ${b.pct}%`">
+            </div>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- ── GRÁFICA CATEGORÍAS ──────────────────────────────── -->
   <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4">
     <div class="flex items-center justify-between mb-3">
       <h3 class="text-sm font-semibold text-white">Por categoría</h3>
@@ -59,13 +177,13 @@
     </div>
   </div>
 
-  <!-- Gráfica flujo 6 meses -->
+  <!-- ── GRÁFICA FLUJO ───────────────────────────────────── -->
   <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-6">
     <h3 class="text-sm font-semibold text-white mb-3">Flujo últimos 6 meses</h3>
     <div id="chart-flow" class="w-full h-44"></div>
   </div>
 
-  <!-- Tarjetas -->
+  <!-- ── TARJETAS ────────────────────────────────────────── -->
   <h3 class="text-sm font-semibold text-slate-400 mb-3">Mis tarjetas</h3>
   <div class="space-y-3 mb-6">
     <template x-if="cards.length === 0">
@@ -86,12 +204,10 @@
             </p>
           </div>
           <div class="text-right">
-            <p class="text-sm font-semibold text-white"
-              x-text="'$' + (card.total || 0).toLocaleString('es-MX', {minimumFractionDigits:2})"></p>
+            <p class="text-sm font-semibold text-white" x-text="fmt(card.total || 0)"></p>
             <p class="text-xs text-slate-500">este periodo</p>
           </div>
         </div>
-        <!-- Mini barra de uso -->
         <template x-if="card.credit_limit && card.credit_limit > 0">
           <div class="mt-3">
             <div class="flex justify-between text-xs text-slate-600 mb-1">
@@ -99,9 +215,9 @@
               <span x-text="Math.round((card.total / card.credit_limit) * 100) + '%'"></span>
             </div>
             <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-              <div class="h-full rounded-full transition-all" :class="(card.total / card.credit_limit) > 0.8 ? 'bg-red-500' :
-                                         (card.total / card.credit_limit) > 0.5 ? 'bg-amber-500' : 'bg-emerald-500'"
-                :style="`width: ${Math.min((card.total / card.credit_limit) * 100, 100)}%`">
+              <div class="h-full rounded-full transition-all" :class="(card.total/card.credit_limit)>0.8 ? 'bg-red-500' :
+                                         (card.total/card.credit_limit)>0.5 ? 'bg-amber-500' : 'bg-emerald-500'"
+                :style="`width:${Math.min((card.total/card.credit_limit)*100,100)}%`">
               </div>
             </div>
           </div>
@@ -110,7 +226,7 @@
     </template>
   </div>
 
-  <!-- Últimos gastos -->
+  <!-- ── ÚLTIMOS GASTOS ──────────────────────────────────── -->
   <div class="flex items-center justify-between mb-3">
     <h3 class="text-sm font-semibold text-slate-400">Últimos gastos</h3>
     <a href="/expenses/" class="text-xs text-sky-400 hover:text-sky-300 transition">Ver todos →</a>
@@ -126,15 +242,24 @@
       <div class="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 flex items-center justify-between">
         <div class="flex items-center gap-3 min-w-0">
           <div class="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center text-base shrink-0"
-            x-text="categoryEmoji(exp.category)"></div>
+            x-text="catEmoji(exp.category)"></div>
           <div class="min-w-0">
             <p class="text-sm font-medium text-white truncate" x-text="exp.merchant || 'Sin nombre'"></p>
-            <p class="text-xs text-slate-500" x-text="exp.category || 'Sin categoría'"></p>
+            <div class="flex items-center gap-1.5 mt-0.5">
+              <span class="text-xs text-slate-500" x-text="exp.category || 'Sin categoría'"></span>
+              <template x-if="exp.source !== 'manual'">
+                <span class="text-xs px-1.5 py-0.5 rounded-md" :class="{
+                                          'bg-violet-500/10 text-violet-400': exp.source === 'ocr',
+                                          'bg-emerald-500/10 text-emerald-400': exp.source === 'subscription',
+                                          'bg-amber-500/10 text-amber-400': exp.source === 'installment'
+                                      }" x-text="{ocr:'OCR',subscription:'Sub',installment:'MSI'}[exp.source]">
+                </span>
+              </template>
+            </div>
           </div>
         </div>
         <div class="text-right shrink-0 ml-3">
-          <p class="text-sm font-semibold text-white"
-            x-text="'$' + exp.amount.toLocaleString('es-MX', {minimumFractionDigits:2})"></p>
+          <p class="text-sm font-semibold text-white" x-text="fmt(exp.amount)"></p>
           <p class="text-xs text-slate-500" x-text="exp.expense_date"></p>
         </div>
       </div>
@@ -146,16 +271,14 @@
 <script>
   function dashboard() {
     return {
-      cards: [],
-      recentExpenses: [],
-      totalMonth: 0,
-      daysUntilDue: 0,
-      nextDueDate: '',
-      urgentCard: '',
-      currentPeriod: '',
+      cards: [], recentExpenses: [], budgets: [],
+      totalMonth: 0, daysUntilDue: 0,
+      nextDueDate: '', urgentCard: '', currentPeriod: '',
       hasCategories: false,
       monthlyFlow: { periods: [], amounts: [] },
       categoryTotals: {},
+      projection: {},
+      comparison: {},
 
       async init() {
         await this.loadData()
@@ -163,9 +286,10 @@
 
       async loadData() {
         try {
-          const res = await fetch('/dashboard/data')
+          const res = await safeFetch('/dashboard/data')
           if (!res) return
           const d = await res.json()
+
           this.cards = d.cards || []
           this.recentExpenses = d.recent_expenses || []
           this.totalMonth = d.total_month || 0
@@ -175,24 +299,32 @@
           this.currentPeriod = d.current_period || ''
           this.monthlyFlow = d.monthly_flow || { periods: [], amounts: [] }
           this.categoryTotals = d.category_totals || {}
+          this.projection = d.projection || {}
+          this.comparison = d.comparison || {}
           this.hasCategories = Object.keys(this.categoryTotals).length > 0
 
           this.$nextTick(() => this.renderCharts())
+
+          const bRes = await safeFetch(`/budgets/data?period=${this.currentPeriod}`)
+          if (bRes) {
+            const bData = await bRes.json()
+            this.budgets = bData.budgets || []
+          }
         } catch (e) {
-          console.error('Error cargando dashboard:', e)
+          console.error('Error dashboard:', e)
         }
       },
 
       renderCharts() {
-        const cats = Object.keys(this.categoryTotals)
-        const vals = Object.values(this.categoryTotals)
-        const colors = ['#0ea5e9', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#ec4899', '#6366f1', '#64748b']
+        const colors = ['#0ea5e9', '#8b5cf6', '#10b981', '#f59e0b',
+          '#ef4444', '#ec4899', '#6366f1', '#64748b']
 
         // Donut categorías
-        if (cats.length > 0) {
+        if (this.hasCategories) {
           Plotly.newPlot('chart-category', [{
             type: 'pie', hole: 0.65,
-            values: vals, labels: cats,
+            values: Object.values(this.categoryTotals),
+            labels: Object.keys(this.categoryTotals),
             textinfo: 'none',
             marker: { colors },
             hovertemplate: '<b>%{label}</b><br>$%{value:,.2f}<br>%{percent}<extra></extra>',
@@ -204,49 +336,73 @@
           }, { responsive: true, displayModeBar: false })
         }
 
-        // Barras flujo mensual
+        // Barras flujo + línea proyección
         const periods = this.monthlyFlow.periods.map(p => {
           const [y, m] = p.split('-')
-          return new Date(y, m - 1).toLocaleDateString('es-MX', { month: 'short', year: '2-digit' })
+          return new Date(y, m - 1).toLocaleDateString('es-MX',
+            { month: 'short', year: '2-digit' })
         })
+        const amounts = this.monthlyFlow.amounts
 
-        Plotly.newPlot('chart-flow', [{
-          type: 'bar',
-          x: periods,
-          y: this.monthlyFlow.amounts,
+        const traces = [{
+          type: 'bar', x: periods, y: amounts,
           marker: {
-            color: this.monthlyFlow.amounts.map((_, i) =>
-              i === this.monthlyFlow.amounts.length - 1 ? '#0ea5e9' : '#334155'
-            ),
+            color: amounts.map((_, i) =>
+              i === amounts.length - 1 ? '#0ea5e9' : '#1e293b'),
+            line: {
+              color: amounts.map((_, i) =>
+                i === amounts.length - 1 ? '#38bdf8' : '#334155'),
+              width: 1
+            }
           },
           hovertemplate: '$%{y:,.2f}<extra></extra>',
-        }], {
+          name: 'Gastado',
+        }]
+
+        // Línea de proyección en el mes actual
+        if (this.projection.projected && this.projection.projected > 0) {
+          traces.push({
+            type: 'scatter', mode: 'markers',
+            x: [periods[periods.length - 1]],
+            y: [this.projection.projected],
+            marker: { color: '#f59e0b', size: 10, symbol: 'diamond' },
+            hovertemplate: 'Proyección: $%{y:,.2f}<extra></extra>',
+            name: 'Proyección',
+          })
+        }
+
+        Plotly.newPlot('chart-flow', traces, {
           paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-          margin: { t: 5, b: 30, l: 50, r: 5 },
+          margin: { t: 10, b: 30, l: 50, r: 10 },
           xaxis: { color: '#64748b', gridcolor: 'transparent', tickfont: { size: 11 } },
-          yaxis: { color: '#64748b', gridcolor: '#1e293b', tickprefix: '$', tickfont: { size: 10 } },
+          yaxis: {
+            color: '#64748b', gridcolor: '#1e293b',
+            tickprefix: '$', tickfont: { size: 10 }
+          },
+          legend: {
+            font: { color: '#94a3b8', size: 10 },
+            orientation: 'h', y: -0.2
+          },
+          showlegend: true,
         }, { responsive: true, displayModeBar: false })
       },
 
-      categoryEmoji(cat) {
+      fmt(val) {
+        return '$' + (val || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })
+      },
+
+      catEmoji(cat) {
         const map = {
-          'Alimentación': '🍔',
+          'Alimentación': '🍔', 'Transporte': '🚗', 'Entretenimiento': '🎬', 'Inversión': '📈',
+          'Salud': '💊', 'Ropa': '👕', 'Tecnología': '💻', 'Hogar': '🏠', 'Educación': '🎓', 'Cita Bby': '💑',
+          'Vacaciones': '🌴', 'Servicios': '⚡', 'Regalos': '🎁', 'Seguros/Mtto': '🛡️', 'Otro': '📦', "Gasolina": "⛽",
           'Mandado': '🛒',
           'Carro': '🚗',
-          'Gasolina': '⛽',
-          'Entretenimiento': '🎬',
-          'Salud': '💊',
-          'Ropa': '👕',
           'Tecnología': '💻',
           'Hogar': '🏠',
           'Educación': '🎓',
           'Cita Bby': '💑',
           'Vacaciones': '🌴',
-          'Servicios': '⚡',
-          'Regalos': '🎁',
-          'Seguros/Mtto': '🛡️',
-          'Inversión': '📈',
-          'Otro': '📦',
         }
         return map[cat] || '📦'
       }

@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+{% block title %}Calendario{% endblock %}
+
+{% block content %}
+<div class="px-4 pt-6 max-w-lg mx-auto" x-data="calendarView()" x-init="init()">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-xl font-bold text-white">Calendario</h2>
+    <div class="flex items-center gap-1">
+      <button @click="prevMonth()" class="w-9 h-9 flex items-center justify-center rounded-xl
+                           bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition">
+        ‹
+      </button>
+      <span class="text-sm font-medium text-slate-300 px-3 min-w-[120px] text-center capitalize"
+        x-text="monthName">—</span>
+      <button @click="nextMonth()" class="w-9 h-9 flex items-center justify-center rounded-xl
+                           bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition">
+        ›
+      </button>
+    </div>
+  </div>
+
+  <!-- Resumen del mes -->
+  <div class="grid grid-cols-2 gap-3 mb-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3">
+      <p class="text-xs text-slate-500">Total del mes</p>
+      <p class="text-xl font-bold text-white mt-0.5" x-text="fmt(totalMonth)">$0</p>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3">
+      <p class="text-xs text-slate-500">Días con gastos</p>
+      <p class="text-xl font-bold text-white mt-0.5" x-text="expenseDays + ' días'">0</p>
+    </div>
+  </div>
+
+  <!-- Leyenda -->
+  <div class="flex items-center gap-4 mb-3 px-1">
+    <div class="flex items-center gap-1.5">
+      <div class="w-2 h-2 rounded-full bg-red-500"></div>
+      <span class="text-xs text-slate-500">Corte</span>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+      <span class="text-xs text-slate-500">Pago</span>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <div class="w-2 h-2 rounded-full bg-violet-500"></div>
+      <span class="text-xs text-slate-500">Suscripción</span>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <div class="w-2 h-2 rounded-full bg-sky-500"></div>
+      <span class="text-xs text-slate-500">Gasto</span>
+    </div>
+  </div>
+
+  <!-- Grid calendario -->
+  <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden mb-4">
+
+    <!-- Cabecera días -->
+    <div class="grid grid-cols-7 border-b border-slate-800">
+      <template x-for="day in ['L','M','M','J','V','S','D']">
+        <div class="text-center text-xs text-slate-600 font-medium py-2" x-text="day"></div>
+      </template>
+    </div>
+
+    <!-- Semanas -->
+    <div x-show="loading" class="h-64 flex items-center justify-center">
+      <div class="w-8 h-8 border-2 border-slate-700 border-t-sky-500 rounded-full animate-spin"></div>
+    </div>
+
+    <div x-show="!loading">
+      <template x-for="(week, wi) in weeks" :key="wi">
+        <div class="grid grid-cols-7" :class="wi < weeks.length - 1 ? 'border-b border-slate-800/50' : ''">
+          <template x-for="(day, di) in week" :key="di">
+            <div class="min-h-[64px] p-1 relative cursor-pointer
+                                    border-r border-slate-800/30 last:border-r-0
+                                    transition-colors" :class="{
+                                 'bg-transparent': !day,
+                                 'hover:bg-slate-800/40': day,
+                                 'bg-sky-500/5': day && day.is_today,
+                             }" @click="day && selectDay(day)">
+
+              <!-- Número del día -->
+              <template x-if="day">
+                <div class="flex flex-col h-full">
+                  <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs font-medium leading-none" :class="{
+                                                  'text-sky-400 font-bold': day.is_today,
+                                                  'text-slate-600': day.is_weekend && !day.is_today,
+                                                  'text-slate-400': !day.is_weekend && !day.is_today,
+                                              }" x-text="day.day"></span>
+                  </div>
+
+                  <!-- Puntos de eventos -->
+                  <div class="flex flex-wrap gap-0.5 mb-1">
+                    <template x-if="day.cut_events.length > 0">
+                      <div class="w-1.5 h-1.5 rounded-full bg-red-500"></div>
+                    </template>
+                    <template x-if="day.pay_events.length > 0">
+                      <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                    </template>
+                    <template x-if="day.sub_events.length > 0">
+                      <div class="w-1.5 h-1.5 rounded-full bg-violet-500"></div>
+                    </template>
+                    <template x-if="day.count > 0">
+                      <div class="w-1.5 h-1.5 rounded-full bg-sky-500"></div>
+                    </template>
+                  </div>
+
+                  <!-- Total del día -->
+                  <template x-if="day.total > 0">
+                    <span class="text-[9px] font-medium text-sky-400 leading-none" x-text="'$' + (day.total >= 1000
+                                                  ? (day.total/1000).toFixed(1) + 'k'
+                                                  : day.total.toFixed(0))">
+                    </span>
+                  </template>
+                </div>
+              </template>
+            </div>
+          </template>
+        </div>
+      </template>
+    </div>
+  </div>
+
+  <!-- Panel detalle día seleccionado -->
+  <div x-show="selectedDay" x-transition class="bg-slate-900 border border-slate-700 rounded-2xl p-4 mb-4">
+
+    <div class="flex items-center justify-between mb-3">
+      <p class="text-sm font-semibold text-white" x-text="selectedDay ? formatDate(selectedDay.date) : ''"></p>
+      <button @click="selectedDay = null"
+        class="text-slate-600 hover:text-slate-400 transition text-lg leading-none">×</button>
+    </div>
+
+    <!-- Cortes -->
+    <template x-if="selectedDay && selectedDay.cut_events.length > 0">
+      <div class="mb-3 pb-3 border-b border-slate-800">
+        <template x-for="ev in selectedDay.cut_events" :key="ev.label">
+          <div class="flex items-center justify-between py-1.5">
+            <div class="flex items-center gap-2">
+              <div class="w-2 h-2 rounded-full bg-red-500 shrink-0"></div>
+              <div>
+                <p class="text-xs text-red-400 font-medium" x-text="ev.label"></p>
+                <p class="text-[10px] text-slate-600" x-text="'Cierra periodo ' + ev.period"></p>
+              </div>
+            </div>
+            <div class="text-right">
+              <p class="text-xs font-bold text-red-400" x-text="fmt(ev.amount)"></p>
+              <p class="text-[10px] text-slate-600">total corte</p>
+            </div>
+          </div>
+        </template>
+      </div>
+    </template>
+
+    <!-- Pagos -->
+    <template x-if="selectedDay && selectedDay.pay_events.length > 0">
+      <div class="mb-3 pb-3 border-b border-slate-800">
+        <template x-for="ev in selectedDay.pay_events" :key="ev.label">
+          <div class="flex items-center justify-between py-1.5">
+            <div class="flex items-center gap-2">
+              <div class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></div>
+              <div>
+                <p class="text-xs text-emerald-400 font-medium" x-text="ev.label"></p>
+                <p class="text-[10px] text-slate-600" x-text="'Periodo ' + ev.period"></p>
+              </div>
+            </div>
+            <div class="text-right">
+              <template x-if="ev.amount > 0">
+                <div>
+                  <p class="text-xs font-bold text-emerald-400" x-text="fmt(ev.amount)"></p>
+                  <p class="text-[10px] text-slate-600">a pagar</p>
+                </div>
+              </template>
+              <template x-if="ev.amount === 0">
+                <p class="text-[10px] text-slate-600">sin gastos</p>
+              </template>
+            </div>
+          </div>
+        </template>
+      </div>
+    </template>
+
+    <!-- Suscripciones -->
+    <template x-if="selectedDay && selectedDay.sub_events.length > 0">
+      <div class="mb-3 pb-3 border-b border-slate-800">
+        <p class="text-xs text-slate-500 mb-2">Suscripciones</p>
+        <template x-for="sub in selectedDay.sub_events" :key="sub.name">
+          <div class="flex items-center justify-between py-1">
+            <div class="flex items-center gap-2">
+              <div class="w-2 h-2 rounded-full bg-violet-500 shrink-0"></div>
+              <span class="text-xs text-slate-300" x-text="sub.name"></span>
+            </div>
+            <span class="text-xs font-medium text-violet-400" x-text="fmt(sub.amount)"></span>
+          </div>
+        </template>
+      </div>
+    </template>
+
+    <!-- Gastos del día -->
+    <template x-if="selectedDay && selectedDay.items.length > 0">
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-xs text-slate-500">Gastos</p>
+          <p class="text-xs font-semibold text-white" x-text="fmt(selectedDay.total)"></p>
+        </div>
+        <div class="space-y-2">
+          <template x-for="item in selectedDay.items" :key="item.merchant + item.amount">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2 min-w-0">
+                <span x-text="catEmoji(item.category)" class="text-base shrink-0"></span>
+                <span class="text-xs text-slate-400 truncate" x-text="item.merchant"></span>
+                <template x-if="item.source !== 'manual'">
+                  <span class="text-[10px] px-1 py-0.5 rounded shrink-0" :class="{
+                                              'bg-violet-500/10 text-violet-400': item.source === 'ocr',
+                                              'bg-emerald-500/10 text-emerald-400': item.source === 'subscription',
+                                              'bg-amber-500/10 text-amber-400': item.source === 'installment',
+                                          }" x-text="{ocr:'OCR',subscription:'Sub',installment:'MSI'}[item.source]">
+                  </span>
+                </template>
+              </div>
+              <span class="text-xs font-semibold text-white ml-2 shrink-0" x-text="fmt(item.amount)"></span>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+
+    <!-- Sin eventos -->
+    <template x-if="selectedDay &&
+                         selectedDay.items.length === 0 &&
+                         selectedDay.cut_events.length === 0 &&
+                         selectedDay.pay_events.length === 0 &&
+                         selectedDay.sub_events.length === 0">
+      <p class="text-xs text-slate-600 text-center py-2">Sin eventos este día</p>
+    </template>
+  </div>
+
+</div>
+
+<script>
+  function calendarView() {
+    const today = new Date()
+    return {
+      year: today.getFullYear(),
+      month: today.getMonth() + 1,
+      monthName: '',
+      weeks: [],
+      loading: true,
+      selectedDay: null,
+      totalMonth: 0,
+      expenseDays: 0,
+
+      async init() {
+        await this.load()
+      },
+
+      async load() {
+        this.loading = true
+        this.selectedDay = null
+        try {
+          const res = await safeFetch(
+            `/calendar/data?year=${this.year}&month=${this.month}`
+          )
+          if (!res) return
+          const d = await res.json()
+          this.weeks = d.weeks || []
+          this.monthName = d.month_name || ''
+          this.totalMonth = d.total_month || 0
+          this.expenseDays = d.expense_days || 0
+        } finally {
+          this.loading = false
+        }
+      },
+
+      prevMonth() {
+        if (this.month === 1) { this.month = 12; this.year-- }
+        else this.month--
+        this.load()
+      },
+
+      nextMonth() {
+        if (this.month === 12) { this.month = 1; this.year++ }
+        else this.month++
+        this.load()
+      },
+
+      selectDay(day) {
+        if (this.selectedDay && this.selectedDay.date === day.date) {
+          this.selectedDay = null
+        } else {
+          this.selectedDay = day
+        }
+      },
+
+      formatDate(isoDate) {
+        const d = new Date(isoDate + 'T12:00:00')
+        return d.toLocaleDateString('es-MX', {
+          weekday: 'long', day: 'numeric', month: 'long'
+        })
+      },
+
+      fmt(val) {
+        return '$' + (val || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })
+      },
+
+      catEmoji(cat) {
+        const map = {
+          'Alimentación': '🍔', 'Transporte': '🚗', 'Entretenimiento': '🎬',
+          'Salud': '💊', 'Ropa': '👕', 'Tecnología': '💻', 'Hogar': '🏠', 'Otro': '📦'
+        }
+        return map[cat] || '📦'
+      }
+    }
+  }
+</script>
+{% endblock %}

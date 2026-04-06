@@ -7,6 +7,9 @@ from starlette.middleware.sessions import SessionMiddleware as StarletteSessionM
 from app.config import settings
 from app.core.session import SessionMiddleware as AppSessionMiddleware
 from app.api import auth, cards, expenses, dashboard, ai_assistant, subscriptions, installments
+from app.api import budgets
+from app.api import calendar_view
+from app.api import push
 
 app = FastAPI(title="Finance App", version="1.0.0")
 
@@ -25,6 +28,9 @@ app.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
 app.include_router(ai_assistant.router, prefix="/ai", tags=["ai"])
 app.include_router(subscriptions.router, prefix="/subscriptions", tags=["subscriptions"])
 app.include_router(installments.router, prefix="/installments", tags=["installments"])
+app.include_router(budgets.router, prefix="/budgets", tags=["budgets"])
+app.include_router(calendar_view.router, prefix="/calendar", tags=["calendar"])
+app.include_router(push.router, prefix="/push", tags=["push"])
 
 @app.get("/")
 async def root(request: Request):

@@ -4,6 +4,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <!-- PWA / iPhone -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Finance App">
+  <link rel="apple-touch-icon" href="/static/img/icon-192.png">
+  <link rel="manifest" href="/static/manifest.json">
+
   <title>{% block title %}Finance App{% endblock %}</title>
 
   <!-- Tailwind CDN -->
@@ -70,6 +77,28 @@
 </head>
 
 <body class="bg-slate-950 text-slate-100 min-h-screen" x-data="{ mobileMenu: false }">
+  <!-- Banner activar notificaciones -->
+  <div id="push-banner" class="hidden fixed top-0 left-0 right-0 z-[90] safe-top">
+    <div class="bg-slate-800 border-b border-slate-700 px-4 py-3
+                flex items-center gap-3 max-w-lg mx-auto">
+      <span class="text-2xl shrink-0">🔔</span>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-medium text-white">Activar alertas</p>
+        <p class="text-xs text-slate-400">
+          Recibe avisos de pagos próximos aunque no tengas la app abierta
+        </p>
+      </div>
+      <div class="flex gap-2 shrink-0">
+        <button onclick="Push.requestPermission()" class="bg-sky-500 hover:bg-sky-400 text-white text-xs
+                           font-medium px-3 py-1.5 rounded-lg transition">
+          Activar
+        </button>
+        <button onclick="Push.dismiss()" class="text-slate-500 hover:text-slate-300 text-xs px-2 transition">
+          ✕
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- ── TOP NAV (solo desktop) ── -->
   <nav
@@ -86,7 +115,10 @@
         class="hover:text-white transition {% if '/subscriptions' in request.url.path %}text-white font-medium{% endif %}">Fijos</a>
       <a href="/installments/"
         class="hover:text-white transition {% if '/installments' in request.url.path %}text-white font-medium{% endif %}">Meses</a>
-
+      <a href="/budgets/"
+        class="hover:text-white transition {% if '/budgets' in request.url.path %}text-white font-medium{% endif %}">Presupuestos</a>
+      <a href="/calendar/"
+        class="hover:text-white transition {% if '/calendar' in request.url.path %}text-white font-medium{% endif %}">Calendario</a>
       <a href="/ai/"
         class="hover:text-white transition {% if '/ai' in request.url.path %}text-white font-medium{% endif %}">Asistente
         IA</a>
@@ -95,66 +127,217 @@
   </nav>
 
   <!-- ── CONTENIDO ── -->
-  <main class="md:pt-14 pb-20 md:pb-6 min-h-screen">
+  <main class="md:pt-14 pb-20 md:pb-6 min-h-screen" data-authenticated>
     {% block content %}{% endblock %}
   </main>
 
   <!-- ── BOTTOM NAV (mobile) ── -->
-  <nav
-    class="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-slate-900/95 backdrop-blur border-t border-slate-800 safe-bottom">
-    <div class="flex justify-around py-2">
-      <a href="/" class="flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl
-              {% if request.url.path == '/' %}text-brand-400{% else %}text-slate-500{% endif %}">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round"
-            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-        </svg>
-        <span class="text-[10px] font-medium">Inicio</span>
-      </a>
+  <div x-data="{ moreOpen: false }">
 
-      <a href="/cards/" class="flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl
-              {% if '/cards' in request.url.path %}text-brand-400{% else %}text-slate-500{% endif %}">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round"
-            d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-        </svg>
-        <span class="text-[10px] font-medium">Tarjetas</span>
-      </a>
-
-      <!-- Botón central -->
-      <a href="/expenses/nuevo" class="flex flex-col items-center -mt-5">
-        <div
-          class="w-14 h-14 rounded-full bg-brand-500 flex items-center justify-center shadow-lg shadow-brand-500/40 border-4 border-slate-950">
-          <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-        </div>
-        <span class="text-[10px] font-medium text-slate-500 mt-1">Agregar</span>
-      </a>
-
-      <a href="/installments/"
-        class="flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl
-                    {% if '/installments' in request.url.path or '/installments' in request.url.path %}text-brand-400{% else %}text-slate-500{% endif %}">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round"
-            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-        </svg>
-        <span class="text-[10px] font-medium">Meses</span>
-      </a>
-
-
-      <a href="/ai/" class="flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl
-              {% if '/ai' in request.url.path %}text-brand-400{% else %}text-slate-500{% endif %}">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round"
-            d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-        </svg>
-        <span class="text-[10px] font-medium">IA</span>
-      </a>
+    <!-- Overlay para cerrar el menú -->
+    <div x-show="moreOpen" x-transition:enter="transition duration-200" x-transition:enter-start="opacity-0"
+      x-transition:enter-end="opacity-100" x-transition:leave="transition duration-150"
+      x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0" @click="moreOpen = false"
+      class="fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm md:hidden">
     </div>
-  </nav>
 
-  <!-- ── LOADING SYSTEM ── -->
+    <!-- Sheet "Más" -->
+    <div x-show="moreOpen" x-transition:enter="transition duration-300 ease-out"
+      x-transition:enter-start="translate-y-full opacity-0" x-transition:enter-end="translate-y-0 opacity-100"
+      x-transition:leave="transition duration-200 ease-in" x-transition:leave-start="translate-y-0 opacity-100"
+      x-transition:leave-end="translate-y-full opacity-0"
+      class="fixed bottom-16 left-0 right-0 z-50 md:hidden px-4 pb-2">
+      <div class="bg-slate-900 border border-slate-700 rounded-2xl overflow-hidden shadow-2xl">
+
+        <!-- Handle -->
+        <div class="flex justify-center pt-3 pb-1">
+          <div class="w-10 h-1 bg-slate-700 rounded-full"></div>
+        </div>
+
+        <div class="p-2">
+          <!-- Gastos -->
+          <a href="/expenses/" @click="moreOpen = false"
+            class="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-slate-800 transition
+                            {% if '/expenses' in request.url.path %}bg-slate-800 text-sky-400{% else %}text-slate-300{% endif %}">
+            <div
+              class="w-10 h-10 rounded-xl flex items-center justify-center
+                                  {% if '/expenses' in request.url.path %}bg-sky-500/10{% else %}bg-slate-800{% endif %}">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+            </div>
+            <div>
+              <p class="text-sm font-medium">Gastos</p>
+              <p class="text-xs text-slate-500">Historial y registro manual</p>
+            </div>
+            <svg class="w-4 h-4 text-slate-600 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
+
+          <!-- Suscripciones -->
+          <a href="/subscriptions/" @click="moreOpen = false"
+            class="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-slate-800 transition
+                            {% if '/subscriptions' in request.url.path %}bg-slate-800 text-sky-400{% else %}text-slate-300{% endif %}">
+            <div
+              class="w-10 h-10 rounded-xl flex items-center justify-center
+                                  {% if '/subscriptions' in request.url.path %}bg-sky-500/10{% else %}bg-slate-800{% endif %}">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </div>
+            <div>
+              <p class="text-sm font-medium">Suscripciones</p>
+              <p class="text-xs text-slate-500">Cargos automáticos mensuales</p>
+            </div>
+            <svg class="w-4 h-4 text-slate-600 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
+
+          <!-- Pagos a meses -->
+          <a href="/installments/" @click="moreOpen = false"
+            class="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-slate-800 transition
+                            {% if '/installments' in request.url.path %}bg-slate-800 text-sky-400{% else %}text-slate-300{% endif %}">
+            <div
+              class="w-10 h-10 rounded-xl flex items-center justify-center
+                                  {% if '/installments' in request.url.path %}bg-sky-500/10{% else %}bg-slate-800{% endif %}">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div>
+              <p class="text-sm font-medium">Pagos a Meses</p>
+              <p class="text-xs text-slate-500">MSI sin intereses</p>
+            </div>
+            <svg class="w-4 h-4 text-slate-600 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
+
+          <!-- Presupuestos -->
+          <a href="/budgets/" @click="moreOpen = false"
+            class="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-slate-800 transition
+                            {% if '/budgets' in request.url.path %}bg-slate-800 text-sky-400{% else %}text-slate-300{% endif %}">
+            <div
+              class="w-10 h-10 rounded-xl flex items-center justify-center
+                                  {% if '/budgets' in request.url.path %}bg-sky-500/10{% else %}bg-slate-800{% endif %}">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </div>
+            <div>
+              <p class="text-sm font-medium">Presupuestos</p>
+              <p class="text-xs text-slate-500">Control por categoría</p>
+            </div>
+            <svg class="w-4 h-4 text-slate-600 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
+
+          <!-- Asistente IA -->
+          <a href="/ai/" @click="moreOpen = false"
+            class="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-slate-800 transition
+                            {% if '/ai' in request.url.path %}bg-slate-800 text-sky-400{% else %}text-slate-300{% endif %}">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center
+                                  {% if '/ai' in request.url.path %}bg-sky-500/10{% else %}bg-slate-800{% endif %}">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+              </svg>
+            </div>
+            <div>
+              <p class="text-sm font-medium">Asistente IA</p>
+              <p class="text-xs text-slate-500">Estrategia de pagos con Gemini</p>
+            </div>
+            <svg class="w-4 h-4 text-slate-600 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
+
+        </div>
+
+        <!-- Cerrar sesión -->
+        <div class="border-t border-slate-800 mx-4 mb-2"></div>
+        <a href="/logout" class="flex items-center gap-4 px-6 py-3 text-red-500/70 hover:text-red-400 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          <span class="text-sm">Cerrar sesión</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- ── Barra principal ── -->
+    <nav class="fixed bottom-0 left-0 right-0 z-50 md:hidden
+                  bg-slate-900/95 backdrop-blur border-t border-slate-800 safe-bottom">
+      <div class="flex justify-around py-2">
+
+        <!-- Inicio -->
+        <a href="/" class="flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl
+                  {% if request.url.path == '/' %}text-sky-400{% else %}text-slate-500{% endif %}">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+          </svg>
+          <span class="text-[10px] font-medium">Inicio</span>
+        </a>
+
+        <!-- Tarjetas -->
+        <a href="/cards/" class="flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl
+                  {% if '/cards' in request.url.path %}text-sky-400{% else %}text-slate-500{% endif %}">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+          </svg>
+          <span class="text-[10px] font-medium">Tarjetas</span>
+        </a>
+
+        <!-- Botón central agregar -->
+        <a href="/expenses/nuevo" class="flex flex-col items-center -mt-5">
+          <div class="w-14 h-14 rounded-full bg-sky-500 flex items-center justify-center
+                              shadow-lg shadow-sky-500/40 border-4 border-slate-950">
+            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+          </div>
+          <span class="text-[10px] font-medium text-slate-500 mt-1">Agregar</span>
+        </a>
+
+        <!-- Calendario -->
+        <a href="/calendar/" class="flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl
+                  {% if '/calendar' in request.url.path %}text-sky-400{% else %}text-slate-500{% endif %}">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <span class="text-[10px] font-medium">Calendario</span>
+        </a>
+
+        <!-- Más -->
+        <button @click="moreOpen = !moreOpen" class="flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition
+                             {% if '/expenses' in request.url.path or '/subscriptions' in request.url.path
+                                or '/installments' in request.url.path or '/budgets' in request.url.path
+                                or '/ai' in request.url.path %}text-sky-400{% else %}text-slate-500{% endif %}"
+          :class="moreOpen ? 'text-sky-400' : ''">
+          <div class="w-6 h-6 flex flex-col items-center justify-center gap-1">
+            <div class="flex gap-1">
+              <div class="w-1.5 h-1.5 rounded-full bg-current"></div>
+              <div class="w-1.5 h-1.5 rounded-full bg-current"></div>
+              <div class="w-1.5 h-1.5 rounded-full bg-current"></div>
+            </div>
+          </div>
+          <span class="text-[10px] font-medium">Más</span>
+        </button>
+
+      </div>
+    </nav>
+  </div>
   <!-- Overlay global -->
   <div id="loading-overlay" class="fixed inset-0 z-[100] bg-slate-950/80 backdrop-blur-sm
               flex flex-col items-center justify-center
@@ -340,6 +523,141 @@
 
     // Sobrescribir fetch en las páginas para usar safeFetch
     window.safeFetch = safeFetch
+
+
+    // ── Push Notifications ───────────────────────────────────────
+    const Push = {
+      sw: null,
+      sub: null,
+
+      async init() {
+        if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+          console.log('Push no soportado en este navegador')
+          return
+        }
+
+        try {
+          // Registrar service worker
+          this.sw = await navigator.serviceWorker.register('/static/js/sw.js')
+          await navigator.serviceWorker.ready
+
+          // Verificar suscripción existente
+          this.sub = await this.sw.pushManager.getSubscription()
+
+          if (this.sub) {
+            // Ya suscrito — verificar alertas del día
+            await this.checkAlerts()
+          } else {
+            // Mostrar botón para activar notificaciones
+            this.showPrompt()
+          }
+        } catch (e) {
+          console.log('Error inicializando push:', e)
+        }
+      },
+
+      showPrompt() {
+        // Solo mostrar si el usuario no lo rechazó antes
+        if (localStorage.getItem('push_dismissed')) return
+
+        const banner = document.getElementById('push-banner')
+        if (banner) {
+          banner.classList.remove('hidden')
+        }
+      },
+
+      async requestPermission() {
+        try {
+          const permission = await Notification.requestPermission()
+          if (permission !== 'granted') {
+            localStorage.setItem('push_dismissed', '1')
+            this.hideBanner()
+            return
+          }
+          await this.subscribe()
+        } catch (e) {
+          console.log('Error solicitando permiso:', e)
+        }
+      },
+
+      async subscribe() {
+        try {
+          // Obtener clave pública
+          const res = await fetch('/push/vapid-key')
+          const data = await res.json()
+          const pubKey = data.public_key
+
+          // Convertir clave a Uint8Array
+          const keyBytes = this.urlBase64ToUint8Array(pubKey)
+
+          // Suscribir al push manager
+          this.sub = await this.sw.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: keyBytes,
+          })
+
+          // Enviar suscripción al servidor
+          await fetch('/push/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.sub.toJSON()),
+          })
+
+          this.hideBanner()
+          Toast.show('🔔 Alertas activadas')
+
+          // Verificar alertas inmediatamente
+          await this.checkAlerts()
+        } catch (e) {
+          console.log('Error suscribiendo:', e)
+        }
+      },
+
+      async checkAlerts() {
+        // Solo verificar una vez por día
+        const lastCheck = localStorage.getItem('push_last_check')
+        const today = new Date().toDateString()
+        if (lastCheck === today) return
+
+        try {
+          await fetch('/push/send-alerts', { method: 'POST' })
+          localStorage.setItem('push_last_check', today)
+        } catch (e) {
+          console.log('Error verificando alertas:', e)
+        }
+      },
+
+      hideBanner() {
+        const banner = document.getElementById('push-banner')
+        if (banner) banner.classList.add('hidden')
+      },
+
+      dismiss() {
+        localStorage.setItem('push_dismissed', '1')
+        this.hideBanner()
+      },
+
+      urlBase64ToUint8Array(base64String) {
+        const padding = '='.repeat((4 - base64String.length % 4) % 4)
+        const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+        const rawData = window.atob(base64)
+        const output = new Uint8Array(rawData.length)
+        for (let i = 0; i < rawData.length; ++i) {
+          output[i] = rawData.charCodeAt(i)
+        }
+        return output
+      }
+    }
+
+    // Inicializar push al cargar (solo si hay sesión)
+    document.addEventListener('DOMContentLoaded', () => {
+      // Solo inicializar si hay usuario autenticado
+      // (el elemento push-banner solo existe en páginas autenticadas)
+      if (document.getElementById('push-banner') !== null ||
+        document.querySelector('[data-authenticated]')) {
+        Push.init()
+      }
+    })
   </script>
 </body>
 
