@@ -23,39 +23,57 @@ async def dashboard_data(request: Request):
     if not user:
         return JSONResponse({"error": "no auth"}, status_code=401)
 
-    supabase  = get_supabase(user["access_token"])
-    today     = date.today()
+    supabase = get_supabase(user["access_token"])
+    today    = date.today()
+    import calendar as cal
 
-    # ── Tarjetas activas ─────────────────────────────────────────
+    # ── Periodo seleccionado (default: periodo activo de hoy) ────
     cards_res = supabase.table("credit_cards")\
         .select("*").eq("user_id", user["id"]).eq("is_active", True).execute()
     cards = cards_res.data or []
 
-    # ── Periodo más urgente ──────────────────────────────────────
-    best_period   = today.strftime("%Y-%m")
-    best_days     = 9999
-    urgent_card   = ""
-    next_due_date = ""
+    # Periodo por default = donde caen los gastos de hoy
+    default_period = get_billing_period(today, cards[0]["cut_day"]) \
+                     if cards else today.strftime("%Y-%m")
 
+    selected_period = request.query_params.get("period", default_period)
+
+    # ── Próximos pagos (siempre basados en fecha real, no en periodo) ──
+    upcoming_payments = []
     for card in cards:
-        for delta in [-1, 0, 1]:
+        for delta in [-2, -1, 0, 1]:
             candidate = today + relativedelta(months=delta)
-            period    = candidate.strftime("%Y-%m")
-            due       = get_payment_due_date(period, card["cut_day"], card["payment_due_day"])
-            days      = (due - today).days
-            if 0 <= days < best_days:
-                best_days     = days
-                best_period   = period
-                urgent_card   = card["name"]
-                next_due_date = due.strftime("%d %b %Y")
+            max_day   = cal.monthrange(candidate.year, candidate.month)[1]
+            cut_date  = date(candidate.year, candidate.month,
+                             min(card["cut_day"], max_day))
+            next_m    = cut_date + relativedelta(months=1)
+            max_day_n = cal.monthrange(next_m.year, next_m.month)[1]
+            pay_date  = date(next_m.year, next_m.month,
+                             min(card["payment_due_day"], max_day_n))
+            days = (pay_date - today).days
+            if days < 0:
+                continue
+            pay_period = cut_date.strftime("%Y-%m")
+            exp_res = supabase.table("expenses")\
+                .select("amount")\
+                .eq("user_id", user["id"])\
+                .eq("card_id", card["id"])\
+                .eq("billing_period", pay_period)\
+                .execute()
+            total = sum(e["amount"] for e in (exp_res.data or []))
+            upcoming_payments.append({
+                "card":     card["name"],
+                "due_date": pay_date.strftime("%d %b %Y"),
+                "days":     days,
+                "amount":   round(total, 2),
+                "period":   pay_period,
+                "urgent":   days <= 5,
+            })
+            break
+    upcoming_payments.sort(key=lambda x: x["days"])
+    next_payment = upcoming_payments[0] if upcoming_payments else None
 
-    if best_days == 9999:
-        best_period   = today.strftime("%Y-%m")
-        best_days     = 0
-        next_due_date = ""
-        urgent_card   = ""
-
-    # ── Gastos últimos 7 meses (6 + actual) ─────────────────────
+    # ── Gastos últimos 7 meses ───────────────────────────────────
     seven_months_ago = (today - relativedelta(months=6)).strftime("%Y-%m")
     expenses_res = supabase.table("expenses")\
         .select("*")\
@@ -65,17 +83,33 @@ async def dashboard_data(request: Request):
         .execute()
     all_expenses = expenses_res.data or []
 
-    # ── Gastos del periodo urgente ───────────────────────────────
-    current_expenses = [e for e in all_expenses if e.get("billing_period") == best_period]
+    # Gastos del periodo SELECCIONADO
+    current_expenses = [e for e in all_expenses
+                        if e.get("billing_period") == selected_period]
     total_month      = sum(e["amount"] for e in current_expenses)
 
-    # ── Proyección del mes ───────────────────────────────────────
-    projection = _calculate_projection(today, best_period, current_expenses)
+    # ── Proyección (solo tiene sentido en el periodo activo) ─────
+    projection = _calculate_projection(today, selected_period, current_expenses) \
+                 if selected_period == default_period else {}
 
-    # ── Comparativa mes a mes ────────────────────────────────────
-    prev_period    = (today - relativedelta(months=1)).strftime("%Y-%m")
-    prev_expenses  = [e for e in all_expenses if e.get("billing_period") == prev_period]
-    comparison     = _calculate_comparison(current_expenses, prev_expenses)
+    # ── Comparativa ──────────────────────────────────────────────
+    # Mes anterior al seleccionado
+    sel_year, sel_month = map(int, selected_period.split("-"))
+    prev_date    = date(sel_year, sel_month, 1) - relativedelta(months=1)
+    prev_period  = prev_date.strftime("%Y-%m")
+    prev_expenses = [e for e in all_expenses
+                     if e.get("billing_period") == prev_period]
+
+    # Si prev no está en los 7 meses, consultar aparte
+    if not prev_expenses and prev_period < seven_months_ago:
+        prev_res = supabase.table("expenses")\
+            .select("*")\
+            .eq("user_id", user["id"])\
+            .eq("billing_period", prev_period)\
+            .execute()
+        prev_expenses = prev_res.data or []
+
+    comparison = _calculate_comparison(current_expenses, prev_expenses)
 
     # ── Flujo mensual 6 meses ────────────────────────────────────
     monthly_flow = {}
@@ -87,7 +121,7 @@ async def dashboard_data(request: Request):
         if p in monthly_flow:
             monthly_flow[p] += exp["amount"]
 
-    # ── Gastos por categoría ─────────────────────────────────────
+    # ── Categorías ───────────────────────────────────────────────
     cat_totals = {}
     for exp in current_expenses:
         cat = exp.get("category", "Otro")
@@ -105,23 +139,25 @@ async def dashboard_data(request: Request):
         cards_with_totals.append(card)
 
     return JSONResponse({
-        "cards":           cards_with_totals,
-        "recent_expenses": all_expenses[:8],
-        "total_month":     total_month,
-        "days_until_due":  best_days,
-        "next_due_date":   next_due_date,
-        "urgent_card":     urgent_card,
-        "current_period":  best_period,
+        "cards":             cards_with_totals,
+        "recent_expenses":   all_expenses[:8],
+        "total_month":       total_month,
+        "selected_period":   selected_period,
+        "default_period":    default_period,
+        "is_current":        selected_period == default_period,
+        "days_until_due":    next_payment["days"] if next_payment else 0,
+        "next_due_date":     next_payment["due_date"] if next_payment else "",
+        "urgent_card":       next_payment["card"] if next_payment else "",
+        "upcoming_payments": upcoming_payments,
         "monthly_flow": {
             "periods": list(monthly_flow.keys()),
             "amounts": list(monthly_flow.values()),
         },
-        "category_totals": cat_totals,
-        "projection":      projection,
-        "comparison":      comparison,
+        "category_totals":   cat_totals,
+        "projection":        projection,
+        "comparison":        comparison,
     })
-
-
+    
 def _calculate_projection(today: date, period: str, expenses: list) -> dict:
     """
     Proyecta el gasto total al cierre del periodo basado

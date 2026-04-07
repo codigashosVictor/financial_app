@@ -114,26 +114,26 @@ async def calendar_data(request: Request):
             "period": cut_period,
         })
 
-        # ── Día de pago ─────────────────────────────────────────
-        # El pago de este mes corresponde al PERIODO que cerró
-        # en el corte del mes ANTERIOR
+        # ── Día de pago ─────────────────────────────────────────────
         pay_day_num = min(card["payment_due_day"], days_in_month)
         pay_key     = date(year, month, pay_day_num).isoformat()
 
-        # El corte anterior: mismo día de corte pero mes anterior
-        prev_month_date = first_day - relativedelta(months=1)
-        prev_year_m     = prev_month_date.year
-        prev_month_m    = prev_month_date.month
-        prev_days       = cal.monthrange(prev_year_m, prev_month_m)[1]
-        prev_cut_day    = min(card["cut_day"], prev_days)
-        prev_cut_date   = date(prev_year_m, prev_month_m, prev_cut_day)
-        prev_period     = get_billing_period(prev_cut_date, card["cut_day"])
+        # El pago de este mes corresponde al corte del mes ANTERIOR
+        # Corte del mes anterior → periodo que cierra ese corte
+        prev_month_date  = date(year, month, 1) - relativedelta(months=1)
+        prev_days_in_m   = cal.monthrange(prev_month_date.year, prev_month_date.month)[1]
+        prev_cut_day_num = min(card["cut_day"], prev_days_in_m)
+        prev_cut_date    = date(prev_month_date.year, prev_month_date.month, prev_cut_day_num)
 
-        # Total a pagar = gastos del periodo que cerró el mes pasado
+        # El periodo que cerró ese corte
+        # gastos del 4 de marzo al 3 de abril → periodo "2026-03"
+        # = el mes donde está la mayoría de los gastos = mes del corte anterior
+        pay_period = prev_cut_date.strftime("%Y-%m")
+
         pay_total = sum(
             e["amount"] for e in all_expenses
             if e.get("card_id") == card["id"]
-            and e.get("billing_period") == prev_period
+            and e.get("billing_period") == pay_period
         )
 
         add_event(pay_key, {
@@ -141,7 +141,7 @@ async def calendar_data(request: Request):
             "label":  f"Pago {card['name']}",
             "card":   card["name"],
             "amount": round(pay_total, 2),
-            "period": prev_period,
+            "period": pay_period,
         })
 
     # ── Suscripciones ────────────────────────────────────────────
