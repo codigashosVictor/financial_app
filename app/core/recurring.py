@@ -72,10 +72,10 @@ def generate_installment_expenses(supabase, user_id: str):
             period_date = start + relativedelta(months=i)
             billing_period = period_date.strftime("%Y-%m")
 
-            # Solo generar periodos pasados y el actual (no futuros)
+            # Solo generar periodos pasados y el actual (generar futuros)
             period_cutoff = date(today.year, today.month, 1)
-            if period_date > period_cutoff:
-                continue
+            # if period_date > period_cutoff:
+            #     continue
 
             existing = client.table("expenses")\
                 .select("id")\
