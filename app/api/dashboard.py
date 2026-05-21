@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from app.core.csrf import configure_templates
 from app.db.supabase_client import get_supabase
 from app.core.billing_cycle import get_billing_period, get_payment_due_date
 from datetime import date
@@ -8,7 +9,7 @@ import calendar
 from dateutil.relativedelta import relativedelta
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
+templates = configure_templates(Jinja2Templates(directory="app/templates"))
 
 @router.get("/", response_class=HTMLResponse)
 async def dashboard_page(request: Request):

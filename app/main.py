@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware as StarletteSessionMiddleware
 from app.config import settings
 from app.core.session import SessionMiddleware as AppSessionMiddleware
+from app.core.csrf import configure_templates
 from app.api import auth, cards, expenses, dashboard, ai_assistant, subscriptions, installments
 from app.api import budgets
 from app.api import calendar_view
@@ -15,11 +16,16 @@ app = FastAPI(title="Finance App", version="1.0.0")
 
 # Orden importante: Starlette session primero, luego el nuestro
 app.add_middleware(AppSessionMiddleware)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.allowed_origins_list,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "X-CSRF-Token"],
+)
 app.add_middleware(StarletteSessionMiddleware, secret_key=settings.SECRET_KEY)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
-templates = Jinja2Templates(directory="app/templates")
+templates = configure_templates(Jinja2Templates(directory="app/templates"))
 
 app.include_router(auth.router, tags=["auth"])
 app.include_router(cards.router, prefix="/cards", tags=["cards"])
@@ -38,3 +44,7 @@ async def root(request: Request):
     if not user:
         return RedirectResponse("/login", status_code=302)
     return templates.TemplateResponse("dashboard.html", {"request": request, "user": user})
+
+@app.get("/healthz")
+async def healthz():
+    return {"ok": True}

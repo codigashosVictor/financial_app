@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="csrf-token" content="{{ csrf_token(request) }}">
   <title>Login — Finance App</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>tailwind.config = { darkMode: 'class' }</script>
@@ -50,6 +51,7 @@
       {% endif %}
 
       <form method="post" action="/login" @submit="loading = true">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
         <!-- Email -->
         <div class="mb-4">
           <label class="block text-xs font-medium text-slate-400 mb-2">Correo electrónico</label>

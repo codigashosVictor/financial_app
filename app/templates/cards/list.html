@@ -54,6 +54,7 @@
         </a>
         <form method="post" action="/cards/{{ card.id }}/eliminar"
           onsubmit="return confirm('¿Eliminar {{ card.name }}?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
           <button type="submit"
             class="text-sm text-red-400 border border-red-500/20 hover:border-red-500/50 px-4 py-2 rounded-xl transition">
             Eliminar

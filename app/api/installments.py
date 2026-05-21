@@ -1,13 +1,15 @@
-from fastapi import APIRouter, Request, Form
+from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from app.core.csrf import configure_templates, verify_csrf
+from app.core.ownership import get_owned_card, get_owned_installment_plan
 from app.db.supabase_client import get_supabase
 from app.core.recurring import generate_installment_expenses, get_installment_status
 from app.core.billing_cycle import get_billing_period
 from datetime import date
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
+templates = configure_templates(Jinja2Templates(directory="app/templates"))
 
 def require_user(request: Request):
     return request.session.get("user")
@@ -46,7 +48,9 @@ async def plans_list(request: Request):
         if status["is_done"]:
             supabase.table("installment_plans")\
                 .update({"is_active": False})\
-                .eq("id", plan["id"]).execute()
+                .eq("id", plan["id"])\
+                .eq("user_id", user["id"])\
+                .execute()
         else:
             plans.append(plan)
 
@@ -80,6 +84,7 @@ async def plan_new(request: Request):
 @router.post("/nuevo")
 async def plan_create(
     request: Request,
+    _csrf: None = Depends(verify_csrf),
     name: str = Form(...),
     card_id: str = Form(...),
     total_amount: float = Form(...),
@@ -95,9 +100,8 @@ async def plan_create(
 
     # Calcular mensualidad y periodo inicial
     monthly_amount = round(total_amount / installments, 2)
-    card_res = supabase.table("credit_cards")\
-        .select("cut_day").eq("id", card_id).single().execute()
-    cut_day = card_res.data["cut_day"]
+    card = get_owned_card(supabase, user["id"], card_id, "cut_day", active_only=True)
+    cut_day = card["cut_day"]
 
     start = date.fromisoformat(start_date)
     start_period = get_billing_period(start, cut_day)
@@ -121,16 +125,20 @@ async def plan_create(
     return RedirectResponse("/installments/", status_code=302)
 
 @router.post("/{plan_id}/eliminar")
-async def plan_delete(request: Request, plan_id: str):
+async def plan_delete(request: Request, plan_id: str, _csrf: None = Depends(verify_csrf)):
     user = require_user(request)
     if not user:
         return RedirectResponse("/login", status_code=302)
 
     supabase = get_supabase(user["access_token"])
+    get_owned_installment_plan(supabase, user["id"], plan_id, "id")
 
     # Eliminar gastos generados por este plan
     supabase.table("expenses")\
-        .delete().eq("installment_plan_id", plan_id).execute()
+        .delete()\
+        .eq("installment_plan_id", plan_id)\
+        .eq("user_id", user["id"])\
+        .execute()
 
     supabase.table("installment_plans")\
         .delete().eq("id", plan_id).eq("user_id", user["id"]).execute()

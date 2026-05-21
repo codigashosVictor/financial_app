@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="csrf-token" content="{{ csrf_token(request) }}">
   <!-- PWA / iPhone -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -476,6 +477,15 @@
     const _originalFetch = window.fetch
     window.fetch = async function (url, options = {}) {
       const method = (options.method || 'GET').toUpperCase()
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content
+
+      if (csrfToken && method !== 'GET') {
+        const headers = new Headers(options.headers || {})
+        if (!headers.has('X-CSRF-Token')) {
+          headers.set('X-CSRF-Token', csrfToken)
+        }
+        options = { ...options, headers }
+      }
 
       // Solo mostrar loader en POST/PUT (no en GETs de datos)
       const isDataFetch = typeof url === 'string' && (

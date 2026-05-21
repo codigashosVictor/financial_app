@@ -81,6 +81,7 @@
       <!-- Eliminar -->
       <form method="post" action="/installments/{{ plan.id }}/eliminar"
         onsubmit="return confirm('¿Eliminar {{ plan.name }}? Se borrarán los gastos generados.')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
         <button type="submit" class="w-full text-sm text-red-500/60 hover:text-red-400 border border-red-500/20
                                hover:border-red-500/40 py-2 rounded-xl transition">
           Eliminar plan

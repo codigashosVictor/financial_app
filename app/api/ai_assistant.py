@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Request, Form
+from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from app.core.csrf import configure_templates, verify_csrf
 from app.db.supabase_client import get_supabase
 from app.core.payment_strategy import analyze_payment_strategy
 from datetime import date
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
+templates = configure_templates(Jinja2Templates(directory="app/templates"))
 
 def require_user(request: Request):
     return request.session.get("user")
@@ -34,7 +35,11 @@ async def ai_page(request: Request):
     })
 
 @router.post("/analyze")
-async def ai_analyze(request: Request, strategy_type: str = Form("snowball")):
+async def ai_analyze(
+    request: Request,
+    _csrf: None = Depends(verify_csrf),
+    strategy_type: str = Form("snowball"),
+):
     user = require_user(request)
     if not user:
         return JSONResponse({"error": "No autorizado"}, status_code=401)

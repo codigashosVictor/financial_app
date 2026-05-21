@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Request, Form
+from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from app.core.csrf import configure_templates, verify_csrf
 from app.db.supabase_client import get_supabase
 from datetime import date
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
+templates = configure_templates(Jinja2Templates(directory="app/templates"))
 
 CATEGORIES = [
     "Alimentación", 
@@ -122,6 +123,7 @@ async def budgets_page(request: Request):
 @router.post("/save")
 async def save_budget(
     request: Request,
+    _csrf: None = Depends(verify_csrf),
     period: str = Form(...),
 ):
     user = require_user(request)
@@ -165,6 +167,7 @@ async def save_budget(
 @router.post("/copy")
 async def copy_budget(
     request: Request,
+    _csrf: None = Depends(verify_csrf),
     from_period: str = Form(...),
     to_period: str = Form(...),
 ):

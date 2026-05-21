@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
+from app.core.csrf import verify_csrf
 from app.db.supabase_client import get_supabase
 from app.config import settings
 from datetime import date
@@ -14,7 +15,7 @@ def require_user(request: Request):
 
 # ── Guardar suscripción push ─────────────────────────────────
 @router.post("/subscribe")
-async def subscribe(request: Request):
+async def subscribe(request: Request, _csrf: None = Depends(verify_csrf)):
     user = require_user(request)
     if not user:
         return JSONResponse({"error": "no auth"}, status_code=401)
@@ -39,7 +40,7 @@ async def subscribe(request: Request):
 
 # ── Eliminar suscripción push ────────────────────────────────
 @router.post("/unsubscribe")
-async def unsubscribe(request: Request):
+async def unsubscribe(request: Request, _csrf: None = Depends(verify_csrf)):
     user = require_user(request)
     if not user:
         return JSONResponse({"error": "no auth"}, status_code=401)
@@ -58,7 +59,7 @@ async def unsubscribe(request: Request):
 
 # ── Enviar alertas del día ───────────────────────────────────
 @router.post("/send-alerts")
-async def send_alerts(request: Request):
+async def send_alerts(request: Request, _csrf: None = Depends(verify_csrf)):
     """
     Revisa pagos próximos y suscripciones del día
     y envía notificaciones push al usuario.

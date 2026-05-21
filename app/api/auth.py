@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Request, Form
+from fastapi import APIRouter, Depends, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from app.core.csrf import configure_templates, verify_csrf
 from app.db.supabase_client import get_supabase
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
+templates = configure_templates(Jinja2Templates(directory="app/templates"))
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
@@ -15,6 +16,7 @@ async def login_page(request: Request):
 @router.post("/login")
 async def login(
     request: Request,
+    _csrf: None = Depends(verify_csrf),
     email: str = Form(...),
     password: str = Form(...)
 ):
