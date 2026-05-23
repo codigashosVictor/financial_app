@@ -3,6 +3,7 @@ from fastapi import HTTPException
 
 from app.core.ownership import (
     get_owned_card,
+    get_owned_card_payment,
     get_owned_installment_plan,
     get_owned_subscription,
 )
@@ -83,5 +84,38 @@ def test_owned_installment_plan_rejects_other_user_plan():
 
     with pytest.raises(HTTPException) as exc:
         get_owned_installment_plan(supabase, "user-1", "plan-1", "id")
+
+    assert exc.value.status_code == 404
+
+
+def test_owned_card_payment_requires_matching_user_id():
+    supabase = FakeSupabase({
+        "card_payments": [
+            {"id": "pay-1", "user_id": "user-1", "card_id": "card-1", "amount": 500}
+        ],
+    })
+
+    payment = get_owned_card_payment(supabase, "user-1", "pay-1", "id, card_id, amount")
+
+    assert payment["amount"] == 500
+    assert ("user_id", "user-1") in supabase.last_query.filters
+
+
+def test_owned_card_payment_rejects_other_user():
+    supabase = FakeSupabase({
+        "card_payments": [{"id": "pay-1", "user_id": "user-2", "amount": 500}],
+    })
+
+    with pytest.raises(HTTPException) as exc:
+        get_owned_card_payment(supabase, "user-1", "pay-1")
+
+    assert exc.value.status_code == 404
+
+
+def test_owned_card_payment_returns_404_when_missing():
+    supabase = FakeSupabase({"card_payments": []})
+
+    with pytest.raises(HTTPException) as exc:
+        get_owned_card_payment(supabase, "user-1", "nonexistent-id")
 
     assert exc.value.status_code == 404

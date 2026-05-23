@@ -242,7 +242,7 @@
       </div>
     </template>
     <template x-for="card in cards" :key="card.id">
-      <a :href="`/expenses/?card_id=${card.id}&period=${selectedPeriod}`" class="block bg-slate-900 border border-slate-800 rounded-2xl p-4
+      <div class="block bg-slate-900 border border-slate-800 rounded-2xl p-4
                       hover:border-slate-700 transition">
         <div class="flex items-center justify-between">
           <div>
@@ -255,6 +255,16 @@
           <div class="text-right">
             <p class="text-sm font-semibold text-white" x-text="fmt(card.total || 0)"></p>
             <p class="text-xs text-slate-500">este periodo</p>
+            <template x-if="card.is_paid && card.pending < 0">
+              <p class="text-xs text-sky-400 font-medium mt-0.5">Saldo a favor</p>
+            </template>
+            <template x-if="card.is_paid && card.pending >= 0">
+              <p class="text-xs text-emerald-400 font-medium mt-0.5">Pagada</p>
+            </template>
+            <template x-if="!card.is_paid && (card.total || 0) > 0">
+              <p class="text-xs text-amber-400 font-medium mt-0.5"
+                 x-text="'Pendiente ' + fmt(card.pending || 0)"></p>
+            </template>
           </div>
         </div>
         <template x-if="card.credit_limit && card.credit_limit > 0">
@@ -271,7 +281,17 @@
             </div>
           </div>
         </template>
-      </a>
+        <div class="flex gap-2 mt-3 pt-3 border-t border-slate-800">
+          <a :href="`/expenses/?card_id=${card.id}&period=${selectedPeriod}`"
+             class="flex-1 text-center text-xs text-slate-400 hover:text-slate-300 transition">
+            Ver gastos
+          </a>
+          <a :href="`/card-payments/${card.id}?period=${selectedPeriod}`"
+             class="flex-1 text-center text-xs text-sky-400 hover:text-sky-300 transition">
+            Ver pagos
+          </a>
+        </div>
+      </div>
     </template>
   </div>
 

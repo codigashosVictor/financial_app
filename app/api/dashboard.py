@@ -4,6 +4,7 @@ from fastapi.templating import Jinja2Templates
 from app.core.csrf import configure_templates
 from app.db.supabase_client import get_supabase
 from app.core.billing_cycle import get_billing_period, get_payment_due_date
+from app.core.card_payments import calculate_pending_balance
 from datetime import date
 import calendar
 from dateutil.relativedelta import relativedelta
@@ -134,9 +135,26 @@ async def dashboard_data(request: Request):
         cid = exp.get("card_id")
         card_totals[cid] = card_totals.get(cid, 0) + exp["amount"]
 
+    payments_res = supabase.table("card_payments") \
+        .select("card_id, amount") \
+        .eq("user_id", user["id"]) \
+        .eq("billing_period", selected_period) \
+        .execute()
+
+    payment_totals = {}
+    for p in (payments_res.data or []):
+        cid = p["card_id"]
+        payment_totals[cid] = payment_totals.get(cid, 0) + p["amount"]
+
     cards_with_totals = []
     for card in cards:
-        card["total"] = card_totals.get(card["id"], 0)
+        total_exp  = card_totals.get(card["id"], 0)
+        total_paid = payment_totals.get(card["id"], 0)
+        balance    = calculate_pending_balance(total_exp, total_paid)
+        card["total"]      = round(total_exp, 2)
+        card["total_paid"] = round(total_paid, 2)
+        card["pending"]    = balance["pending"]
+        card["is_paid"]    = balance["is_paid"]
         cards_with_totals.append(card)
 
     return JSONResponse({

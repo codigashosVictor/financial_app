@@ -38,3 +38,14 @@ def get_owned_installment_plan(supabase, user_id: str, plan_id: str, fields: str
         .execute(),
         "Plan no encontrado",
     )
+
+
+def get_owned_card_payment(supabase, user_id: str, payment_id: str, fields: str = "*"):
+    return first_or_404(
+        supabase.table("card_payments")
+        .select(fields)
+        .eq("id", payment_id)
+        .eq("user_id", user_id)
+        .execute(),
+        "Pago no encontrado",
+    )

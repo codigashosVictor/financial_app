@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Pagos — {{ card.name }}{% endblock %}
+
+{% block content %}
+<div class="px-4 pt-6 max-w-lg mx-auto">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <a href="/cards/" class="text-xs text-slate-500 hover:text-slate-400 transition">
+        ← Mis tarjetas
+      </a>
+      <h2 class="text-xl font-bold text-white mt-1">{{ card.name }}</h2>
+      <p class="text-xs text-slate-500 mt-0.5">Pagos del periodo</p>
+    </div>
+    <form method="get" action="/card-payments/{{ card.id }}">
+      <input type="month" name="period" value="{{ selected_period }}"
+        onchange="this.form.submit()"
+        class="bg-slate-800 border border-slate-700 text-white text-xs rounded-xl px-3 py-2
+               focus:outline-none focus:ring-1 focus:ring-sky-500">
+    </form>
+  </div>
+
+  <!-- Balance summary -->
+  <div class="grid grid-cols-3 gap-3 mb-6">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+      <p class="text-xs text-slate-500 mb-1">Gastos</p>
+      <p class="text-base font-bold text-white">${{ "{:,.2f}".format(total_expenses) }}</p>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+      <p class="text-xs text-slate-500 mb-1">Pagado</p>
+      <p class="text-base font-bold text-emerald-400">${{ "{:,.2f}".format(total_paid) }}</p>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+      <p class="text-xs text-slate-500 mb-1">
+        {% if is_paid and pending < 0 %}Saldo a favor{% elif is_paid %}Pagado{% else %}Pendiente{% endif %}
+      </p>
+      <p class="text-base font-bold {% if is_paid %}text-emerald-400{% else %}text-amber-400{% endif %}">
+        {% if pending < 0 %}
+          ${{ "{:,.2f}".format(pending | abs) }}
+        {% else %}
+          ${{ "{:,.2f}".format(pending) }}
+        {% endif %}
+      </p>
+    </div>
+  </div>
+
+  <!-- Status badge -->
+  <div class="mb-5 text-center">
+    {% if is_paid and pending < 0 %}
+      <span class="inline-block bg-sky-500/10 border border-sky-500/20
+                   text-sky-400 text-xs font-semibold px-4 py-1.5 rounded-full">
+        Saldo a favor
+      </span>
+    {% elif is_paid %}
+      <span class="inline-block bg-emerald-500/10 border border-emerald-500/20
+                   text-emerald-400 text-xs font-semibold px-4 py-1.5 rounded-full">
+        Tarjeta pagada
+      </span>
+    {% else %}
+      <span class="inline-block bg-amber-500/10 border border-amber-500/20
+                   text-amber-400 text-xs font-semibold px-4 py-1.5 rounded-full">
+        Pago pendiente
+      </span>
+    {% endif %}
+  </div>
+
+  <!-- Register payment form -->
+  <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 mb-6">
+    <h3 class="text-sm font-semibold text-white mb-4">Registrar pago</h3>
+    <form method="post" action="/card-payments/{{ card.id }}/nuevo">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+      <input type="hidden" name="billing_period" value="{{ selected_period }}">
+
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs text-slate-500 mb-1">Monto *</label>
+          <input type="number" name="amount" min="0.01" step="0.01" required
+            placeholder="0.00"
+            class="w-full bg-slate-800 border border-slate-700 text-white rounded-xl
+                   px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-500 mb-1">Fecha de pago *</label>
+          <input type="date" name="payment_date" value="{{ today }}" required
+            class="w-full bg-slate-800 border border-slate-700 text-white rounded-xl
+                   px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500">
+        </div>
+        <div>
+          <label class="block text-xs text-slate-500 mb-1">Notas</label>
+          <input type="text" name="notes" placeholder="Opcional"
+            class="w-full bg-slate-800 border border-slate-700 text-white rounded-xl
+                   px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500">
+        </div>
+        <button type="submit"
+          class="w-full bg-sky-500 hover:bg-sky-400 text-white text-sm font-medium
+                 py-2.5 rounded-xl transition">
+          Registrar pago
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Payments list -->
+  <h3 class="text-sm font-semibold text-slate-400 mb-3">Pagos registrados</h3>
+  {% if payments %}
+  <div class="space-y-3">
+    {% for payment in payments %}
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4
+                flex items-center justify-between">
+      <div>
+        <p class="text-sm font-semibold text-emerald-400">
+          ${{ "{:,.2f}".format(payment.amount) }}
+        </p>
+        <p class="text-xs text-slate-500 mt-0.5">{{ payment.payment_date }}</p>
+        {% if payment.notes %}
+        <p class="text-xs text-slate-600 mt-0.5">{{ payment.notes }}</p>
+        {% endif %}
+      </div>
+      <form method="post" action="/card-payments/{{ payment.id }}/eliminar"
+        onsubmit="return confirm('¿Eliminar este pago?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+        <button type="submit"
+          class="text-xs text-red-400/60 hover:text-red-400 border border-red-500/20
+                 hover:border-red-500/40 px-3 py-1.5 rounded-xl transition">
+          Eliminar
+        </button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="bg-slate-900 border border-dashed border-slate-700 rounded-2xl p-8 text-center">
+    <p class="text-slate-500 text-sm">Sin pagos registrados para este periodo</p>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
