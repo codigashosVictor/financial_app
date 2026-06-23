@@ -29,6 +29,7 @@
   <div x-show="copying" x-transition class="bg-slate-900 border border-slate-700 rounded-2xl p-4 mb-4">
     <p class="text-sm font-medium text-white mb-3">Copiar presupuesto de otro mes</p>
     <form method="post" action="/budgets/copy" class="flex gap-2">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
       <input type="month" name="from_period" class="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3 py-2
                           text-sm text-white focus:outline-none focus:border-sky-500 transition">
       <input type="hidden" name="to_period" value="{{ current_period }}">
@@ -81,6 +82,7 @@
 
   <!-- Form de presupuestos -->
   <form method="post" action="/budgets/save" x-ref="budgetForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <input type="hidden" name="period" value="{{ current_period }}">
 
     <div class="space-y-3">

@@ -6,7 +6,7 @@ from app.config import settings
 import time
 
 # Rutas que NO requieren autenticación
-PUBLIC_ROUTES = {"/login", "/logout", "/static", "/favicon.ico"}
+PUBLIC_ROUTES = {"/login", "/logout", "/static", "/favicon.ico", "/healthz"}
 
 class SessionMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
@@ -57,11 +57,6 @@ class SessionMiddleware(BaseHTTPMiddleware):
                     return JSONResponse({"error": "Sesión expirada", "redirect": "/login"}, status_code=401)
                 return RedirectResponse("/login", status_code=302)
 
-        # Continuar con la request normal
-        try:
-            response = await call_next(request)
-            return response
-        except Exception:
-            # Cualquier error no capturado → redirigir limpiamente
-            request.session.clear()
-            return RedirectResponse("/login", status_code=302)
+        # Continuar con la request normal. Los errores internos deben
+        # llegar a FastAPI para que puedan verse en logs y depurarse.
+        return await call_next(request)

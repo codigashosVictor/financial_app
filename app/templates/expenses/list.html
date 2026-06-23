@@ -96,6 +96,7 @@
       <!-- Eliminar -->
       <div class="mt-2 flex justify-end">
         <form method="post" action="/expenses/{{ exp.id }}/eliminar" onsubmit="return confirm('¿Eliminar este gasto?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
           <button type="submit" class="text-xs text-red-500/60 hover:text-red-400 transition">
             Eliminar
           </button>

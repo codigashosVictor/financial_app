@@ -18,6 +18,7 @@
   {% endif %}
 
   <form method="post" action="/expenses/nuevo" class="space-y-4">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
 
     <!-- Tarjeta -->
     <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">

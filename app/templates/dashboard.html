@@ -74,6 +74,44 @@
     </div>
   </div>
 
+  <div class="grid grid-cols-2 gap-3 mb-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+      <p class="text-xs text-slate-500 mb-1">Ingresos</p>
+      <p class="text-2xl font-bold text-emerald-400" x-text="fmt(totalIncome)">$0</p>
+      <p class="text-xs text-slate-500 mt-1">del periodo</p>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+      <p class="text-xs text-slate-500 mb-1">Neto</p>
+      <p class="text-2xl font-bold" :class="netCashflow < 0 ? 'text-red-400' : 'text-emerald-400'"
+         x-text="fmt(netCashflow)">$0</p>
+      <p class="text-xs text-slate-500 mt-1">ingresos - gastos</p>
+    </div>
+  </div>
+
+  <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-sm font-semibold text-white">Caja próxima 30 días</h3>
+      <span class="text-xs font-semibold px-2 py-1 rounded-lg"
+            :class="cashProjection.is_negative ? 'bg-red-500/10 text-red-400' : 'bg-emerald-500/10 text-emerald-400'"
+            x-text="cashProjection.is_negative ? 'Riesgo de falta de caja' : 'Cobertura positiva'"></span>
+    </div>
+    <div class="grid grid-cols-3 gap-2">
+      <div class="bg-slate-800/50 rounded-xl p-3 text-center">
+        <p class="text-xs text-slate-500 mb-1">Entradas</p>
+        <p class="text-sm font-bold text-emerald-400" x-text="fmt(cashProjection.income_30d)"></p>
+      </div>
+      <div class="bg-slate-800/50 rounded-xl p-3 text-center">
+        <p class="text-xs text-slate-500 mb-1">Salidas</p>
+        <p class="text-sm font-bold text-red-400" x-text="fmt(cashProjection.expenses_30d)"></p>
+      </div>
+      <div class="bg-slate-800/50 rounded-xl p-3 text-center">
+        <p class="text-xs text-slate-500 mb-1">Neto 30d</p>
+        <p class="text-sm font-bold" :class="cashProjection.net_30d < 0 ? 'text-red-400' : 'text-emerald-400'"
+           x-text="fmt(cashProjection.net_30d)"></p>
+      </div>
+    </div>
+  </div>
+
   <!-- Próximos pagos -->
   <div x-show="upcomingPayments.length > 0" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4">
     <h3 class="text-sm font-semibold text-white mb-3">Próximos pagos</h3>
@@ -242,7 +280,7 @@
       </div>
     </template>
     <template x-for="card in cards" :key="card.id">
-      <a :href="`/expenses/?card_id=${card.id}&period=${selectedPeriod}`" class="block bg-slate-900 border border-slate-800 rounded-2xl p-4
+      <div class="block bg-slate-900 border border-slate-800 rounded-2xl p-4
                       hover:border-slate-700 transition">
         <div class="flex items-center justify-between">
           <div>
@@ -255,6 +293,16 @@
           <div class="text-right">
             <p class="text-sm font-semibold text-white" x-text="fmt(card.total || 0)"></p>
             <p class="text-xs text-slate-500">este periodo</p>
+            <template x-if="card.is_paid && card.pending < 0">
+              <p class="text-xs text-sky-400 font-medium mt-0.5">Saldo a favor</p>
+            </template>
+            <template x-if="card.is_paid && card.pending >= 0">
+              <p class="text-xs text-emerald-400 font-medium mt-0.5">Pagada</p>
+            </template>
+            <template x-if="!card.is_paid && (card.total || 0) > 0">
+              <p class="text-xs text-amber-400 font-medium mt-0.5"
+                 x-text="'Pendiente ' + fmt(card.pending || 0)"></p>
+            </template>
           </div>
         </div>
         <template x-if="card.credit_limit && card.credit_limit > 0">
@@ -271,7 +319,17 @@
             </div>
           </div>
         </template>
-      </a>
+        <div class="flex gap-2 mt-3 pt-3 border-t border-slate-800">
+          <a :href="`/expenses/?card_id=${card.id}&period=${selectedPeriod}`"
+             class="flex-1 text-center text-xs text-slate-400 hover:text-slate-300 transition">
+            Ver gastos
+          </a>
+          <a :href="`/card-payments/${card.id}?period=${selectedPeriod}`"
+             class="flex-1 text-center text-xs text-sky-400 hover:text-sky-300 transition">
+            Ver pagos
+          </a>
+        </div>
+      </div>
     </template>
   </div>
 
@@ -323,7 +381,7 @@
   function dashboard() {
     return {
       cards: [], recentExpenses: [], budgets: [],
-      totalMonth: 0, daysUntilDue: 0,
+      totalMonth: 0, totalIncome: 0, netCashflow: 0, daysUntilDue: 0,
       nextDueDate: '', urgentCard: '',
       selectedPeriod: '', defaultPeriod: '',
       isCurrent: true,
@@ -332,6 +390,7 @@
       monthlyFlow: { periods: [], amounts: [] },
       categoryTotals: {},
       projection: {}, comparison: {},
+      cashProjection: { income_30d: 0, expenses_30d: 0, net_30d: 0, is_negative: false },
 
       async init() {
         // Periodo default = hoy
@@ -353,6 +412,8 @@
           this.cards = d.cards || []
           this.recentExpenses = d.recent_expenses || []
           this.totalMonth = d.total_month || 0
+          this.totalIncome = d.total_income || 0
+          this.netCashflow = d.net_cashflow || 0
           this.daysUntilDue = d.days_until_due || 0
           this.nextDueDate = d.next_due_date || ''
           this.urgentCard = d.urgent_card || ''
@@ -364,6 +425,7 @@
           this.categoryTotals = d.category_totals || {}
           this.projection = d.projection || {}
           this.comparison = d.comparison || {}
+          this.cashProjection = d.cash_projection || this.cashProjection
           this.hasCategories = Object.keys(this.categoryTotals).length > 0
 
           // Cargar presupuestos del periodo seleccionado

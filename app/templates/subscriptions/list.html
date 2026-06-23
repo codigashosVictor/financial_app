@@ -55,6 +55,7 @@
       <!-- Estado + acciones -->
       <div class="flex items-center gap-2">
         <form method="post" action="/subscriptions/{{ sub.id }}/toggle" class="flex-1">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
           <button type="submit" class="w-full text-sm py-2 rounded-xl border transition
                                    {% if sub.is_active %}
                                    text-emerald-400 border-emerald-500/30 hover:border-emerald-500/60
@@ -66,6 +67,7 @@
         </form>
         <form method="post" action="/subscriptions/{{ sub.id }}/eliminar"
           onsubmit="return confirm('¿Eliminar {{ sub.name }}?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
           <button type="submit" class="text-sm text-red-500/60 hover:text-red-400 border border-red-500/20
                                    hover:border-red-500/40 px-4 py-2 rounded-xl transition">
             Eliminar

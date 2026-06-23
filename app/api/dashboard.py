@@ -1,14 +1,18 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+from app.core.csrf import configure_templates
 from app.db.supabase_client import get_supabase
 from app.core.billing_cycle import get_billing_period, get_payment_due_date
+from app.core.card_payments import calculate_pending_balance
+from app.core.cashflow import calculate_30d_projection, calculate_net_cashflow, month_bounds
+from app.core.income_projection import ensure_weekly_income_projections, get_or_create_income_rule
 from datetime import date
 import calendar
 from dateutil.relativedelta import relativedelta
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
+templates = configure_templates(Jinja2Templates(directory="app/templates"))
 
 @router.get("/", response_class=HTMLResponse)
 async def dashboard_page(request: Request):
@@ -26,6 +30,13 @@ async def dashboard_data(request: Request):
     supabase = get_supabase(user["access_token"])
     today    = date.today()
     import calendar as cal
+
+    payroll_rule = get_or_create_income_rule(supabase, user["id"])
+    projection_end = today + relativedelta(days=120)
+    month_start = date(today.year, today.month, 1)
+    ensure_weekly_income_projections(
+        supabase, user["id"], month_start, projection_end, payroll_rule
+    )
 
     # ── Periodo seleccionado (default: periodo activo de hoy) ────
     cards_res = supabase.table("credit_cards")\
@@ -88,6 +99,18 @@ async def dashboard_data(request: Request):
                         if e.get("billing_period") == selected_period]
     total_month      = sum(e["amount"] for e in current_expenses)
 
+    # ── Ingresos del periodo seleccionado ───────────────────────
+    income_start, income_end = month_bounds(selected_period)
+    incomes_res = supabase.table("incomes")\
+        .select("amount, income_date")\
+        .eq("user_id", user["id"])\
+        .gte("income_date", income_start.isoformat())\
+        .lte("income_date", income_end.isoformat())\
+        .execute()
+    incomes = incomes_res.data or []
+    total_income = round(sum(i["amount"] for i in incomes), 2)
+    net_cashflow = calculate_net_cashflow(total_income, total_month)
+
     # ── Proyección (solo tiene sentido en el periodo activo) ─────
     projection = _calculate_projection(today, selected_period, current_expenses) \
                  if selected_period == default_period else {}
@@ -133,15 +156,48 @@ async def dashboard_data(request: Request):
         cid = exp.get("card_id")
         card_totals[cid] = card_totals.get(cid, 0) + exp["amount"]
 
+    payments_res = supabase.table("card_payments") \
+        .select("card_id, amount") \
+        .eq("user_id", user["id"]) \
+        .eq("billing_period", selected_period) \
+        .execute()
+
+    payment_totals = {}
+    for p in (payments_res.data or []):
+        cid = p["card_id"]
+        payment_totals[cid] = payment_totals.get(cid, 0) + p["amount"]
+
     cards_with_totals = []
     for card in cards:
-        card["total"] = card_totals.get(card["id"], 0)
+        total_exp  = card_totals.get(card["id"], 0)
+        total_paid = payment_totals.get(card["id"], 0)
+        balance    = calculate_pending_balance(total_exp, total_paid)
+        card["total"]      = round(total_exp, 2)
+        card["total_paid"] = round(total_paid, 2)
+        card["pending"]    = balance["pending"]
+        card["is_paid"]    = balance["is_paid"]
         cards_with_totals.append(card)
+
+    # ── Proyección de flujo a 30 días ───────────────────────────
+    next_30_days = today + relativedelta(days=30)
+    incomes_30d_res = supabase.table("incomes")\
+        .select("amount")\
+        .eq("user_id", user["id"])\
+        .gte("income_date", today.isoformat())\
+        .lte("income_date", next_30_days.isoformat())\
+        .execute()
+    projected_income = sum(i["amount"] for i in (incomes_30d_res.data or []))
+    projected_expenses = sum(
+        payment["amount"] for payment in upcoming_payments if payment["days"] <= 30
+    )
+    cash_projection = calculate_30d_projection(projected_income, projected_expenses)
 
     return JSONResponse({
         "cards":             cards_with_totals,
         "recent_expenses":   all_expenses[:8],
         "total_month":       total_month,
+        "total_income":      total_income,
+        "net_cashflow":      net_cashflow,
         "selected_period":   selected_period,
         "default_period":    default_period,
         "is_current":        selected_period == default_period,
@@ -153,6 +209,7 @@ async def dashboard_data(request: Request):
             "periods": list(monthly_flow.keys()),
             "amounts": list(monthly_flow.values()),
         },
+        "cash_projection":   cash_projection,
         "category_totals":   cat_totals,
         "projection":        projection,
         "comparison":        comparison,

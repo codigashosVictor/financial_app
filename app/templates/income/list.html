@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Ingresos{% endblock %}
+
+{% block content %}
+<div class="px-4 pt-6 max-w-lg mx-auto">
+
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h2 class="text-xl font-bold text-white">Ingresos</h2>
+      <p class="text-xs text-slate-500 mt-0.5">Control de entradas de efectivo</p>
+    </div>
+    <form method="get" action="/income/">
+      <input type="month" name="period" value="{{ period }}"
+        onchange="this.form.submit()"
+        class="bg-slate-800 border border-slate-700 text-white text-xs rounded-xl px-3 py-2
+               focus:outline-none focus:ring-1 focus:ring-sky-500">
+    </form>
+  </div>
+
+  <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4">
+    <p class="text-xs text-slate-500 mb-1">Total ingreso del periodo</p>
+    <p class="text-2xl font-bold text-emerald-400">${{ "{:,.2f}".format(total_income) }}</p>
+  </div>
+
+  <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 mb-4">
+    <h3 class="text-sm font-semibold text-white mb-4">Nomina semanal automatica</h3>
+    <form method="post" action="/income/configurar-nomina" class="grid grid-cols-2 gap-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+      <input type="hidden" name="period" value="{{ period }}">
+      <div>
+        <label class="block text-xs text-slate-500 mb-1">Monto semanal</label>
+        <input type="number" name="weekly_amount" min="0.01" step="0.01"
+          value="{{ payroll_rule.weekly_amount }}"
+          class="w-full bg-slate-800 border border-slate-700 text-white rounded-xl
+                 px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500">
+      </div>
+      <div>
+        <label class="block text-xs text-slate-500 mb-1">Dia de pago</label>
+        <select name="payday_weekday"
+          class="w-full bg-slate-800 border border-slate-700 text-white rounded-xl
+                 px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500">
+          {% set weekdays = [(0, 'Lunes'), (1, 'Martes'), (2, 'Miercoles'), (3, 'Jueves'), (4, 'Viernes'), (5, 'Sabado'), (6, 'Domingo')] %}
+          {% for val, label in weekdays %}
+          <option value="{{ val }}" {% if payroll_rule.payday_weekday == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-span-2">
+        <button type="submit"
+          class="w-full bg-sky-500 hover:bg-sky-400 text-white text-sm font-medium py-2.5 rounded-xl transition">
+          Actualizar regla automatica
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 mb-6">
+    <h3 class="text-sm font-semibold text-white mb-4">Registrar ingreso</h3>
+    <form method="post" action="/income/nuevo" class="space-y-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+      <div>
+        <label class="block text-xs text-slate-500 mb-1">Fuente *</label>
+        <input type="text" name="source" required placeholder="Nomina, Freelance, Venta..."
+          class="w-full bg-slate-800 border border-slate-700 text-white rounded-xl
+                 px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500">
+      </div>
+      <div>
+        <label class="block text-xs text-slate-500 mb-1">Monto *</label>
+        <input type="number" name="amount" required min="0.01" step="0.01" placeholder="0.00"
+          class="w-full bg-slate-800 border border-slate-700 text-white rounded-xl
+                 px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500">
+      </div>
+      <div>
+        <label class="block text-xs text-slate-500 mb-1">Fecha *</label>
+        <input type="date" name="income_date" value="{{ today }}" required
+          class="w-full bg-slate-800 border border-slate-700 text-white rounded-xl
+                 px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500">
+      </div>
+      <div>
+        <label class="block text-xs text-slate-500 mb-1">Notas</label>
+        <input type="text" name="notes" placeholder="Opcional"
+          class="w-full bg-slate-800 border border-slate-700 text-white rounded-xl
+                 px-4 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-sky-500">
+      </div>
+      <button type="submit"
+        class="w-full bg-sky-500 hover:bg-sky-400 text-white text-sm font-medium py-2.5 rounded-xl transition">
+        Guardar ingreso
+      </button>
+    </form>
+  </div>
+
+  <h3 class="text-sm font-semibold text-slate-400 mb-3">Ingresos registrados</h3>
+  {% if incomes %}
+  <div class="space-y-3">
+    {% for income in incomes %}
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+      <div class="min-w-0">
+        <p class="text-sm font-semibold text-white truncate">{{ income.source }}</p>
+        <p class="text-xs text-slate-500 mt-0.5">{{ income.income_date }}</p>
+        {% if income.is_projected %}
+        <p class="text-xs text-sky-400 mt-0.5">Proyectado automatico</p>
+        {% endif %}
+        {% if income.notes %}
+        <p class="text-xs text-slate-600 mt-0.5 truncate">{{ income.notes }}</p>
+        {% endif %}
+      </div>
+      <div class="text-right shrink-0 ml-4">
+        <p class="text-sm font-bold text-emerald-400">${{ "{:,.2f}".format(income.amount) }}</p>
+        {% if income.is_projected %}
+        <form method="post" action="/income/{{ income.id }}/ajustar" class="mt-1 flex items-center gap-1">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+          <input type="number" name="amount" min="0.01" step="0.01"
+            value="{{ income.amount }}"
+            class="w-20 bg-slate-800 border border-slate-700 text-white rounded-lg px-2 py-1 text-xs">
+          <button type="submit"
+            class="text-xs text-sky-400 border border-sky-500/20 hover:border-sky-500/40 px-2 py-1 rounded-lg transition">
+            Ajustar
+          </button>
+        </form>
+        {% endif %}
+        <form method="post" action="/income/{{ income.id }}/eliminar" class="mt-1"
+          onsubmit="return confirm('¿Eliminar este ingreso?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+          <button type="submit"
+            class="text-xs text-red-400/60 hover:text-red-400 border border-red-500/20
+                   hover:border-red-500/40 px-2.5 py-1 rounded-lg transition">
+            Eliminar
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="bg-slate-900 border border-dashed border-slate-700 rounded-2xl p-8 text-center">
+    <p class="text-slate-500 text-sm">Sin ingresos para este periodo</p>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

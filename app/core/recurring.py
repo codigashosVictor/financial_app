@@ -25,6 +25,7 @@ def generate_subscription_expenses(supabase, user_id: str, user_token: str):
         # Verificar si ya existe el gasto para este periodo
         existing = client.table("expenses")\
             .select("id")\
+            .eq("user_id", user_id)\
             .eq("subscription_id", sub["id"])\
             .eq("billing_period", billing_period)\
             .execute()
@@ -79,6 +80,7 @@ def generate_installment_expenses(supabase, user_id: str):
 
             existing = client.table("expenses")\
                 .select("id")\
+                .eq("user_id", user_id)\
                 .eq("installment_plan_id", plan["id"])\
                 .eq("billing_period", billing_period)\
                 .execute()

@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="csrf-token" content="{{ csrf_token(request) }}">
   <!-- PWA / iPhone -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -111,6 +112,8 @@
         class="hover:text-white transition {% if '/cards' in request.url.path %}text-white font-medium{% endif %}">Tarjetas</a>
       <a href="/expenses/"
         class="hover:text-white transition {% if '/expenses' in request.url.path %}text-white font-medium{% endif %}">Gastos</a>
+      <a href="/income/"
+        class="hover:text-white transition {% if '/income' in request.url.path %}text-white font-medium{% endif %}">Ingresos</a>
       <a href="/subscriptions/"
         class="hover:text-white transition {% if '/subscriptions' in request.url.path %}text-white font-medium{% endif %}">Fijos</a>
       <a href="/installments/"
@@ -191,6 +194,27 @@
             <div>
               <p class="text-sm font-medium">Suscripciones</p>
               <p class="text-xs text-slate-500">Cargos automáticos mensuales</p>
+            </div>
+            <svg class="w-4 h-4 text-slate-600 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
+
+          <!-- Ingresos -->
+          <a href="/income/" @click="moreOpen = false"
+            class="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-slate-800 transition
+                            {% if '/income' in request.url.path %}bg-slate-800 text-sky-400{% else %}text-slate-300{% endif %}">
+            <div
+              class="w-10 h-10 rounded-xl flex items-center justify-center
+                                  {% if '/income' in request.url.path %}bg-sky-500/10{% else %}bg-slate-800{% endif %}">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M7 17l9.2-9.2M17 17V7H7" />
+              </svg>
+            </div>
+            <div>
+              <p class="text-sm font-medium">Ingresos</p>
+              <p class="text-xs text-slate-500">Entradas de efectivo</p>
             </div>
             <svg class="w-4 h-4 text-slate-600 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -323,6 +347,7 @@
         <button @click="moreOpen = !moreOpen" class="flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition
                              {% if '/expenses' in request.url.path or '/subscriptions' in request.url.path
                                 or '/installments' in request.url.path or '/budgets' in request.url.path
+                                or '/income' in request.url.path
                                 or '/ai' in request.url.path %}text-sky-400{% else %}text-slate-500{% endif %}"
           :class="moreOpen ? 'text-sky-400' : ''">
           <div class="w-6 h-6 flex flex-col items-center justify-center gap-1">
@@ -420,6 +445,9 @@
       '/expenses/nuevo': { msg: 'Guardando gasto...', sub: 'Calculando periodo de TDC' },
       '/expenses/scan/guardar': { msg: 'Guardando ticket...', sub: 'Asignando a tu tarjeta' },
       '/expenses/ocr': { msg: 'Analizando con Gemini ✨', sub: 'Extrayendo datos del ticket' },
+      // Ingresos
+      '/income/nuevo': { msg: 'Guardando ingreso...', sub: 'Actualizando flujo de caja' },
+      '/income/': { msg: 'Actualizando ingresos...', sub: '' },
       // Tarjetas
       '/cards/nuevo': { msg: 'Creando tarjeta...', sub: 'Configurando fechas de corte' },
       '/cards/editar': { msg: 'Actualizando tarjeta...', sub: 'Guardando cambios' },
@@ -476,6 +504,15 @@
     const _originalFetch = window.fetch
     window.fetch = async function (url, options = {}) {
       const method = (options.method || 'GET').toUpperCase()
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content
+
+      if (csrfToken && method !== 'GET') {
+        const headers = new Headers(options.headers || {})
+        if (!headers.has('X-CSRF-Token')) {
+          headers.set('X-CSRF-Token', csrfToken)
+        }
+        options = { ...options, headers }
+      }
 
       // Solo mostrar loader en POST/PUT (no en GETs de datos)
       const isDataFetch = typeof url === 'string' && (

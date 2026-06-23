@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Request, Form, File, UploadFile
+from fastapi import APIRouter, Depends, Request, Form, File, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from app.core.csrf import configure_templates, verify_csrf
+from app.core.ownership import get_owned_card
 from app.db.supabase_client import get_supabase
 from app.core.billing_cycle import get_billing_period
 from app.core.ocr_processor import process_receipt_image
@@ -9,7 +11,7 @@ from typing import Optional
 import uuid
 
 router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
+templates = configure_templates(Jinja2Templates(directory="app/templates"))
 
 def require_user(request: Request):
     return request.session.get("user")
@@ -80,6 +82,7 @@ async def expense_new(request: Request):
 @router.post("/nuevo")
 async def expense_create(
     request: Request,
+    _csrf: None = Depends(verify_csrf),
     card_id: str = Form(...),
     merchant: str = Form(""),
     amount: float = Form(...),
@@ -95,13 +98,8 @@ async def expense_create(
     supabase = get_supabase(user["access_token"])
 
     # Obtener cut_day de la tarjeta
-    card_res = supabase.table("credit_cards")\
-        .select("cut_day")\
-        .eq("id", card_id)\
-        .single()\
-        .execute()
-
-    cut_day = card_res.data["cut_day"]
+    card = get_owned_card(supabase, user["id"], card_id, "cut_day")
+    cut_day = card["cut_day"]
     exp_date = date.fromisoformat(expense_date)
     billing_period = get_billing_period(exp_date, cut_day)
 
@@ -143,6 +141,7 @@ async def scan_page(request: Request):
 @router.post("/ocr")
 async def process_ocr(
     request: Request,
+    _csrf: None = Depends(verify_csrf),
     image: UploadFile = File(...),
 ):
     user = require_user(request)
@@ -156,6 +155,7 @@ async def process_ocr(
 @router.post("/scan/guardar")
 async def scan_save(
     request: Request,
+    _csrf: None = Depends(verify_csrf),
     card_id: str = Form(...),
     merchant: str = Form(""),
     amount: float = Form(...),
@@ -169,13 +169,8 @@ async def scan_save(
         return RedirectResponse("/login", status_code=302)
 
     supabase = get_supabase(user["access_token"])
-    card_res = supabase.table("credit_cards")\
-        .select("cut_day")\
-        .eq("id", card_id)\
-        .single()\
-        .execute()
-
-    cut_day = card_res.data["cut_day"]
+    card = get_owned_card(supabase, user["id"], card_id, "cut_day")
+    cut_day = card["cut_day"]
     exp_date = date.fromisoformat(expense_date)
     billing_period = get_billing_period(exp_date, cut_day)
 
@@ -195,7 +190,7 @@ async def scan_save(
     return RedirectResponse("/expenses/", status_code=302)
 
 @router.post("/{expense_id}/eliminar")
-async def expense_delete(request: Request, expense_id: str):
+async def expense_delete(request: Request, expense_id: str, _csrf: None = Depends(verify_csrf)):
     user = require_user(request)
     if not user:
         return RedirectResponse("/login", status_code=302)

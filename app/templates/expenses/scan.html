@@ -73,6 +73,7 @@
     </div>
 
     <form method="post" action="/expenses/scan/guardar" class="space-y-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
 
       <!-- Tarjeta -->
       <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
@@ -186,6 +187,7 @@
         try {
           const formData = new FormData()
           formData.append('image', this.imageFile)
+          formData.append('csrf_token', document.querySelector('meta[name="csrf-token"]').content)
 
           const res = await fetch('/expenses/ocr', { method: 'POST', body: formData })
           const data = await res.json()

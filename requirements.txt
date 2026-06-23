@@ -14,3 +14,4 @@ cryptography>=42.0.0
 cffi>=1.17.0
 py-vapid==1.9.1
 requests>=2.32.0
+pytest>=8.2.0
