@@ -4,6 +4,7 @@ from fastapi import HTTPException
 from app.core.ownership import (
     get_owned_card,
     get_owned_card_payment,
+    get_owned_income,
     get_owned_installment_plan,
     get_owned_subscription,
 )
@@ -117,5 +118,27 @@ def test_owned_card_payment_returns_404_when_missing():
 
     with pytest.raises(HTTPException) as exc:
         get_owned_card_payment(supabase, "user-1", "nonexistent-id")
+
+    assert exc.value.status_code == 404
+
+
+def test_owned_income_requires_matching_user_id():
+    supabase = FakeSupabase({
+        "incomes": [{"id": "inc-1", "user_id": "user-1", "amount": 1200}],
+    })
+
+    income = get_owned_income(supabase, "user-1", "inc-1", "id, amount")
+
+    assert income["amount"] == 1200
+    assert ("user_id", "user-1") in supabase.last_query.filters
+
+
+def test_owned_income_rejects_other_user():
+    supabase = FakeSupabase({
+        "incomes": [{"id": "inc-1", "user_id": "user-2", "amount": 1200}],
+    })
+
+    with pytest.raises(HTTPException) as exc:
+        get_owned_income(supabase, "user-1", "inc-1")
 
     assert exc.value.status_code == 404

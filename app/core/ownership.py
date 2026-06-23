@@ -49,3 +49,14 @@ def get_owned_card_payment(supabase, user_id: str, payment_id: str, fields: str 
         .execute(),
         "Pago no encontrado",
     )
+
+
+def get_owned_income(supabase, user_id: str, income_id: str, fields: str = "*"):
+    return first_or_404(
+        supabase.table("incomes")
+        .select(fields)
+        .eq("id", income_id)
+        .eq("user_id", user_id)
+        .execute(),
+        "Ingreso no encontrado",
+    )

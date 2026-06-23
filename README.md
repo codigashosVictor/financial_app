@@ -1,6 +1,6 @@
 # Finance App
 
-App privada para controlar tarjetas de crédito, gastos, presupuestos, suscripciones, pagos a meses, calendario financiero, OCR de tickets y recomendaciones con IA.
+App privada para controlar tarjetas de crédito, ingresos, gastos, presupuestos, suscripciones, pagos a meses, calendario financiero, OCR de tickets y recomendaciones con IA.
 
 ## Requisitos
 
@@ -50,7 +50,7 @@ El healthcheck público es `/healthz`.
 
 ## Supabase
 
-La app espera tablas para usuarios/autenticación, tarjetas, gastos, presupuestos, suscripciones, planes MSI, logs de IA y push subscriptions. Configura RLS para que cada usuario solo pueda leer y escribir sus propios registros. El backend también valida `user_id` en operaciones sensibles.
+La app espera tablas para usuarios/autenticación, tarjetas, ingresos, gastos, presupuestos, suscripciones, planes MSI, logs de IA y push subscriptions. Configura RLS para que cada usuario solo pueda leer y escribir sus propios registros. El backend también valida `user_id` en operaciones sensibles.
 
 ## Módulos principales
 
@@ -59,6 +59,7 @@ La app espera tablas para usuarios/autenticación, tarjetas, gastos, presupuesto
 - `app/core/csrf.py`: generación y validación CSRF.
 - `app/core/ownership.py`: helpers defensivos de ownership.
 - `app/core/billing_cycle.py`: cálculo de periodos de corte y fechas de pago.
+- `app/core/cashflow.py`: utilidades para neto y proyección de caja.
 - `app/core/recurring.py`: generación de gastos de suscripciones y MSI.
 - `app/api/`: rutas de la aplicación.
 - `app/templates/`: vistas Jinja.
