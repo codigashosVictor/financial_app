@@ -24,17 +24,35 @@
   <!-- Resumen del mes -->
   <div class="grid grid-cols-2 gap-3 mb-4">
     <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3">
-      <p class="text-xs text-slate-500">Total del mes</p>
-      <p class="text-xl font-bold text-white mt-0.5" x-text="fmt(totalMonth)">$0</p>
+      <p class="text-xs text-slate-500">Gastos del mes</p>
+      <p class="text-xl font-bold text-red-400 mt-0.5" x-text="fmt(totalMonth)">$0</p>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3">
+      <p class="text-xs text-slate-500">Ingresos del mes</p>
+      <p class="text-xl font-bold text-yellow-400 mt-0.5" x-text="fmt(totalIncomeMonth)">$0</p>
     </div>
     <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3">
       <p class="text-xs text-slate-500">Días con gastos</p>
       <p class="text-xl font-bold text-white mt-0.5" x-text="expenseDays + ' días'">0</p>
     </div>
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3">
+      <p class="text-xs text-slate-500">Flujo neto</p>
+      <p class="text-xl font-bold mt-0.5"
+         :class="netFlow >= 0 ? 'text-emerald-400' : 'text-red-400'"
+         x-text="fmt(netFlow)">$0</p>
+    </div>
   </div>
 
   <!-- Leyenda -->
-  <div class="flex items-center gap-4 mb-3 px-1">
+  <div class="flex flex-wrap items-center gap-3 mb-3 px-1">
+    <div class="flex items-center gap-1.5">
+      <div class="w-2 h-2 rounded-full bg-yellow-400"></div>
+      <span class="text-xs text-slate-500">Ingreso</span>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <div class="w-2 h-2 rounded-full bg-sky-500"></div>
+      <span class="text-xs text-slate-500">Gasto</span>
+    </div>
     <div class="flex items-center gap-1.5">
       <div class="w-2 h-2 rounded-full bg-red-500"></div>
       <span class="text-xs text-slate-500">Corte</span>
@@ -46,10 +64,6 @@
     <div class="flex items-center gap-1.5">
       <div class="w-2 h-2 rounded-full bg-violet-500"></div>
       <span class="text-xs text-slate-500">Suscripción</span>
-    </div>
-    <div class="flex items-center gap-1.5">
-      <div class="w-2 h-2 rounded-full bg-sky-500"></div>
-      <span class="text-xs text-slate-500">Gasto</span>
     </div>
   </div>
 
@@ -93,6 +107,9 @@
 
                   <!-- Puntos de eventos -->
                   <div class="flex flex-wrap gap-0.5 mb-1">
+                    <template x-if="day.income_events && day.income_events.length > 0">
+                      <div class="w-1.5 h-1.5 rounded-full bg-yellow-400"></div>
+                    </template>
                     <template x-if="day.cut_events.length > 0">
                       <div class="w-1.5 h-1.5 rounded-full bg-red-500"></div>
                     </template>
@@ -107,7 +124,16 @@
                     </template>
                   </div>
 
-                  <!-- Total del día -->
+                  <!-- Ingreso del día (amarillo) -->
+                  <template x-if="day.income_events && day.income_events.length > 0">
+                    <span class="text-[9px] font-medium text-yellow-400 leading-none"
+                          x-text="'+$' + (incomeTotal(day.income_events) >= 1000
+                            ? (incomeTotal(day.income_events)/1000).toFixed(1) + 'k'
+                            : incomeTotal(day.income_events).toFixed(0))">
+                    </span>
+                  </template>
+
+                  <!-- Total del día (gastos) -->
                   <template x-if="day.total > 0">
                     <span class="text-[9px] font-medium text-sky-400 leading-none" x-text="'$' + (day.total >= 1000
                                                   ? (day.total/1000).toFixed(1) + 'k'
@@ -131,6 +157,30 @@
       <button @click="selectedDay = null"
         class="text-slate-600 hover:text-slate-400 transition text-lg leading-none">×</button>
     </div>
+
+    <!-- Ingresos -->
+    <template x-if="selectedDay && selectedDay.income_events && selectedDay.income_events.length > 0">
+      <div class="mb-3 pb-3 border-b border-slate-800">
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-xs text-slate-500">Ingresos</p>
+          <p class="text-xs font-semibold text-yellow-400" x-text="fmt(incomeTotal(selectedDay.income_events))"></p>
+        </div>
+        <template x-for="inc in selectedDay.income_events" :key="inc.source + inc.amount">
+          <div class="flex items-center justify-between py-1">
+            <div class="flex items-center gap-2">
+              <div class="w-2 h-2 rounded-full shrink-0"
+                   :class="inc.is_projected ? 'bg-yellow-400/40 border border-yellow-400 border-dashed' : 'bg-yellow-400'"></div>
+              <div>
+                <span class="text-xs text-slate-300" x-text="inc.source"></span>
+                <span x-show="inc.is_projected"
+                      class="ml-1.5 text-[10px] px-1 py-0.5 rounded bg-yellow-400/10 text-yellow-500">Proyectado</span>
+              </div>
+            </div>
+            <span class="text-xs font-semibold text-yellow-400" x-text="fmt(inc.amount)"></span>
+          </div>
+        </template>
+      </div>
+    </template>
 
     <!-- Cortes -->
     <template x-if="selectedDay && selectedDay.cut_events.length > 0">
@@ -231,7 +281,8 @@
                          selectedDay.items.length === 0 &&
                          selectedDay.cut_events.length === 0 &&
                          selectedDay.pay_events.length === 0 &&
-                         selectedDay.sub_events.length === 0">
+                         selectedDay.sub_events.length === 0 &&
+                         (!selectedDay.income_events || selectedDay.income_events.length === 0)">
       <p class="text-xs text-slate-600 text-center py-2">Sin eventos este día</p>
     </template>
   </div>
@@ -249,6 +300,7 @@
       loading: true,
       selectedDay: null,
       totalMonth: 0,
+      totalIncomeMonth: 0,
       expenseDays: 0,
 
       async init() {
@@ -267,6 +319,7 @@
           this.weeks = d.weeks || []
           this.monthName = d.month_name || ''
           this.totalMonth = d.total_month || 0
+          this.totalIncomeMonth = d.total_income_month || 0
           this.expenseDays = d.expense_days || 0
         } finally {
           this.loading = false
@@ -298,6 +351,14 @@
         return d.toLocaleDateString('es-MX', {
           weekday: 'long', day: 'numeric', month: 'long'
         })
+      },
+
+      get netFlow() {
+        return this.totalIncomeMonth - this.totalMonth
+      },
+
+      incomeTotal(events) {
+        return (events || []).reduce((s, e) => s + (e.amount || 0), 0)
       },
 
       fmt(val) {

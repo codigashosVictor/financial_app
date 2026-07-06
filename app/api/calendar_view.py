@@ -163,6 +163,28 @@ async def calendar_data(request: Request):
             "amount": sub["amount"],
         })
 
+    # ── Ingresos del mes ─────────────────────────────────────────
+    incomes_res = supabase.table("incomes")\
+        .select("source, amount, income_date, is_projected")\
+        .eq("user_id", user["id"])\
+        .gte("income_date", first_day.isoformat())\
+        .lte("income_date", last_day.isoformat())\
+        .order("income_date")\
+        .execute()
+
+    income_by_day: dict = {}
+    for inc in (incomes_res.data or []):
+        d = inc["income_date"]
+        if d not in income_by_day:
+            income_by_day[d] = []
+        income_by_day[d].append({
+            "source":       inc.get("source") or "Ingreso",
+            "amount":       inc["amount"],
+            "is_projected": inc.get("is_projected", False),
+        })
+
+    total_income_month = round(sum(i["amount"] for i in (incomes_res.data or [])), 2)
+
     # ── Grid del calendario ──────────────────────────────────────
     cal_matrix = cal.monthcalendar(year, month)
     weeks = []
@@ -176,25 +198,29 @@ async def calendar_data(request: Request):
             day_data = expenses_by_day.get(day_key, {})
             c_events = card_events.get(day_key, [])
             days.append({
-                "day":        day_num,
-                "date":       day_key,
-                "is_today":   day_key == today.isoformat(),
-                "is_weekend": date(year, month, day_num).weekday() >= 5,
-                "total":      day_data.get("total", 0),
-                "count":      day_data.get("count", 0),
-                "items":      day_data.get("items", []),
-                "cut_events": [e for e in c_events if e["type"] == "cut"],
-                "pay_events": [e for e in c_events if e["type"] == "payment"],
-                "sub_events": sub_events.get(day_key, []),
+                "day":           day_num,
+                "date":          day_key,
+                "is_today":      day_key == today.isoformat(),
+                "is_weekend":    date(year, month, day_num).weekday() >= 5,
+                "total":         day_data.get("total", 0),
+                "count":         day_data.get("count", 0),
+                "items":         day_data.get("items", []),
+                "cut_events":    [e for e in c_events if e["type"] == "cut"],
+                "pay_events":    [e for e in c_events if e["type"] == "payment"],
+                "sub_events":    sub_events.get(day_key, []),
+                "income_events": income_by_day.get(day_key, []),
             })
         weeks.append(days)
 
+    total_expenses_month = round(sum(v["total"] for v in expenses_by_day.values()), 2)
+
     return JSONResponse({
-        "year":        year,
-        "month":       month,
-        "month_name":  date(year, month, 1).strftime("%B %Y"),
-        "weeks":       weeks,
-        "today":       today.isoformat(),
-        "total_month": round(sum(v["total"] for v in expenses_by_day.values()), 2),
-        "expense_days": len(expenses_by_day),
+        "year":               year,
+        "month":              month,
+        "month_name":         date(year, month, 1).strftime("%B %Y"),
+        "weeks":              weeks,
+        "today":              today.isoformat(),
+        "total_month":        total_expenses_month,
+        "expense_days":       len(expenses_by_day),
+        "total_income_month": total_income_month,
     })
