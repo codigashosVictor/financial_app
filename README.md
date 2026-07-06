@@ -61,7 +61,16 @@ La app espera tablas para usuarios/autenticación, tarjetas, ingresos, gastos, p
 - `app/core/billing_cycle.py`: cálculo de periodos de corte y fechas de pago.
 - `app/core/cashflow.py`: utilidades para neto y proyección de caja.
 - `app/core/recurring.py`: generación de gastos de suscripciones y MSI.
+- `app/core/alerts.py`: cálculo de alertas (pagos próximos, cargos del día, presupuesto).
 - `app/api/`: rutas de la aplicación.
+- `app/api/cron.py`: `POST /cron/send-alerts`, alertas proactivas para todos los usuarios (protegido con `CRON_SECRET`, pensado para un scheduler externo).
 - `app/templates/`: vistas Jinja.
 - `static/`: assets PWA/frontend.
 - `docs/card-payments-spec.md`: diseño propuesto para pagos de tarjeta.
+
+## Alertas proactivas
+
+`POST /push/send-alerts` revisa alertas solo cuando el usuario abre la app (máx. una vez al día). Para que las notificaciones lleguen aunque la app esté cerrada, `POST /cron/send-alerts` hace lo mismo para todos los usuarios con dispositivo push registrado, usando el service role de Supabase. Requiere:
+
+1. Configurar `CRON_SECRET` en `.env` (y en el entorno de producción).
+2. Disparar el endpoint periódicamente con ese secreto en el header `X-Cron-Secret`. Se incluye `.github/workflows/send-alerts-cron.yml` como scheduler gratuito vía GitHub Actions — configura los secrets `APP_URL` y `CRON_SECRET` en el repo de GitHub.

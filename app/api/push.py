@@ -4,9 +4,8 @@ from app.core.csrf import verify_csrf
 from app.db.supabase_client import get_supabase
 from app.config import settings
 from datetime import date
-from dateutil.relativedelta import relativedelta
-from app.core.billing_cycle import get_payment_due_date, get_billing_period
-import json
+from app.core.alerts import build_alerts_for_user
+from app.core.push_dispatch import send_alerts_to_user
 
 router = APIRouter()
 
@@ -61,7 +60,7 @@ async def unsubscribe(request: Request, _csrf: None = Depends(verify_csrf)):
 @router.post("/send-alerts")
 async def send_alerts(request: Request, _csrf: None = Depends(verify_csrf)):
     """
-    Revisa pagos próximos y suscripciones del día
+    Revisa pagos próximos, suscripciones del día y presupuesto
     y envía notificaciones push al usuario.
     """
     user = require_user(request)
@@ -72,112 +71,14 @@ async def send_alerts(request: Request, _csrf: None = Depends(verify_csrf)):
         return JSONResponse({"error": "VAPID no configurado"}, status_code=500)
 
     supabase = get_supabase(user["access_token"])
-    today    = date.today()
-    alerts   = []
-
-    # ── Alertas de pago de tarjetas ──────────────────────────
-    cards_res = supabase.table("credit_cards")\
-        .select("*").eq("user_id", user["id"]).eq("is_active", True).execute()
-
-    for card in (cards_res.data or []):
-        for delta in [-1, 0]:
-            candidate = today + relativedelta(months=delta)
-            period    = candidate.strftime("%Y-%m")
-            due       = get_payment_due_date(period, card["cut_day"], card["payment_due_day"])
-            days_left = (due - today).days
-
-            if days_left not in [0, 1, 3, 7]:
-                continue
-
-            # Calcular monto del periodo
-            exp_res = supabase.table("expenses")\
-                .select("amount")\
-                .eq("user_id", user["id"])\
-                .eq("card_id", card["id"])\
-                .eq("billing_period", period)\
-                .execute()
-            total = sum(e["amount"] for e in (exp_res.data or []))
-
-            if days_left == 0:
-                title = f"⚠️ Pago HOY — {card['name']}"
-                body  = f"Vence hoy. Total a pagar: ${total:,.2f}"
-                urgent = True
-            elif days_left == 1:
-                title = f"🔴 Pago MAÑANA — {card['name']}"
-                body  = f"Tienes 1 día. Total: ${total:,.2f}"
-                urgent = True
-            elif days_left == 3:
-                title = f"🟡 Pago en 3 días — {card['name']}"
-                body  = f"Vence el {due.strftime('%d %b')}. Total: ${total:,.2f}"
-                urgent = False
-            else:
-                title = f"📅 Pago en 1 semana — {card['name']}"
-                body  = f"Vence el {due.strftime('%d %b')}. Total: ${total:,.2f}"
-                urgent = False
-
-            alerts.append({
-                "title":  title,
-                "body":   body,
-                "tag":    f"payment-{card['id']}-{period}",
-                "url":    "/",
-                "urgent": urgent,
-            })
-            break  # solo una alerta por tarjeta
-
-    # ── Alertas de suscripciones del día ────────────────────
-    subs_res = supabase.table("subscriptions")\
-        .select("*")\
-        .eq("user_id", user["id"])\
-        .eq("is_active", True)\
-        .execute()
-
-    day_subs = [s for s in (subs_res.data or []) if s["charge_day"] == today.day]
-    if day_subs:
-        names  = ", ".join(s["name"] for s in day_subs[:3])
-        total  = sum(s["amount"] for s in day_subs)
-        alerts.append({
-            "title":  f"🔄 Cargos de hoy",
-            "body":   f"{names} — ${total:,.2f} en total",
-            "tag":    f"subs-{today.isoformat()}",
-            "url":    "/subscriptions/",
-            "urgent": False,
-        })
+    alerts   = build_alerts_for_user(supabase, user["id"], date.today())
 
     if not alerts:
         return JSONResponse({"sent": 0, "message": "Sin alertas para hoy"})
 
-    # ── Obtener suscripciones push del usuario ───────────────
-    subs_push = supabase.table("push_subscriptions")\
-        .select("*").eq("user_id", user["id"]).execute()
-
-    if not subs_push.data:
+    sent = send_alerts_to_user(supabase, user["id"], alerts)
+    if sent == 0:
         return JSONResponse({"sent": 0, "message": "Sin dispositivos registrados"})
-
-    # ── Enviar notificaciones ────────────────────────────────
-    from pywebpush import webpush, WebPushException
-    sent = 0
-
-    for sub in subs_push.data:
-        for alert in alerts:
-            try:
-                webpush(
-                    subscription_info={
-                        "endpoint": sub["endpoint"],
-                        "keys": {
-                            "p256dh": sub["p256dh"],
-                            "auth":   sub["auth"],
-                        }
-                    },
-                    data=json.dumps(alert),
-                    vapid_private_key=settings.VAPID_PRIVATE_KEY,
-                    vapid_claims={"sub": settings.VAPID_EMAIL},
-                )
-                sent += 1
-            except WebPushException as e:
-                # Si el endpoint ya no es válido, eliminarlo
-                if "410" in str(e) or "404" in str(e):
-                    supabase.table("push_subscriptions")\
-                        .delete().eq("endpoint", sub["endpoint"]).execute()
 
     return JSONResponse({"sent": sent, "alerts": len(alerts)})
 

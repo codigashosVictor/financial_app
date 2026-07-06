@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     VAPID_PRIVATE_KEY: str = ""
     VAPID_EMAIL: str = "mailto:admin@financeapp.com"
     ALLOWED_ORIGINS: str = "http://localhost:8000,http://127.0.0.1:8000"
+    CRON_SECRET: str = ""
 
     @property
     def allowed_origins_list(self) -> list[str]:

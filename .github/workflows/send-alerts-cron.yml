@@ -1,0 +1,16 @@
+name: Send proactive alerts
+
+on:
+  schedule:
+    # 08:00 y 20:00 hora Ciudad de México (UTC-6)
+    - cron: "0 14,2 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  send-alerts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call /cron/send-alerts
+        run: |
+          curl -sf -X POST "${{ secrets.APP_URL }}/cron/send-alerts" \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}"
