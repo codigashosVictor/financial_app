@@ -6,6 +6,7 @@ from app.core.ownership import get_owned_card
 from app.db.supabase_client import get_supabase
 from app.core.billing_cycle import get_billing_period
 from app.core.ocr_processor import process_receipt_image
+from app.core.clock import today as get_today
 from datetime import date
 from typing import Optional
 import uuid
@@ -25,7 +26,7 @@ async def expenses_list(request: Request):
     supabase = get_supabase(user["access_token"])
 
     # Filtros desde query params
-    period = request.query_params.get("period", date.today().strftime("%Y-%m"))
+    period = request.query_params.get("period", get_today().strftime("%Y-%m"))
     card_id = request.query_params.get("card_id", "")
 
     query = supabase.table("expenses")\
@@ -76,7 +77,7 @@ async def expense_new(request: Request):
         "cards": cards_res.data or [],
         "expense": None,
         "error": None,
-        "today": date.today().isoformat(),
+        "today": get_today().isoformat(),
     })
 
 @router.post("/nuevo")
@@ -135,7 +136,7 @@ async def scan_page(request: Request):
         "request": request,
         "user": user,
         "cards": cards_res.data or [],
-        "today": date.today().isoformat(),
+        "today": get_today().isoformat(),
     })
 
 @router.post("/ocr")

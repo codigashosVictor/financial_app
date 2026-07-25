@@ -6,6 +6,7 @@ from app.core.ownership import get_owned_card, get_owned_installment_plan
 from app.db.supabase_client import get_supabase
 from app.core.recurring import generate_installment_expenses, get_installment_status
 from app.core.billing_cycle import get_billing_period
+from app.core.clock import today as get_today
 from datetime import date
 
 router = APIRouter()
@@ -21,7 +22,7 @@ async def plans_list(request: Request):
         return RedirectResponse("/login", status_code=302)
 
     supabase = get_supabase(user["access_token"])
-    today = date.today()
+    today = get_today()
     current_period = today.strftime("%Y-%m")
 
     # Generar cuotas automáticas
@@ -77,7 +78,7 @@ async def plan_new(request: Request):
     return templates.TemplateResponse("installments/form.html", {
         "request": request, "user": user,
         "cards": cards.data or [],
-        "today": date.today().isoformat(),
+        "today": get_today().isoformat(),
         "error": None,
     })
 

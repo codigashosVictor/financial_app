@@ -6,6 +6,7 @@ from app.config import settings
 from datetime import date
 from app.core.alerts import build_alerts_for_user
 from app.core.push_dispatch import send_alerts_to_user
+from app.core.clock import today as get_today
 
 router = APIRouter()
 
@@ -71,7 +72,7 @@ async def send_alerts(request: Request, _csrf: None = Depends(verify_csrf)):
         return JSONResponse({"error": "VAPID no configurado"}, status_code=500)
 
     supabase = get_supabase(user["access_token"])
-    alerts   = build_alerts_for_user(supabase, user["id"], date.today())
+    alerts   = build_alerts_for_user(supabase, user["id"], get_today())
 
     if not alerts:
         return JSONResponse({"sent": 0, "message": "Sin alertas para hoy"})

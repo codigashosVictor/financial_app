@@ -1,13 +1,14 @@
 from datetime import date
 from dateutil.relativedelta import relativedelta
 from app.core.billing_cycle import get_billing_period
+from app.core.clock import today as get_today
 
 def generate_subscription_expenses(supabase, user_id: str, user_token: str):
     """
     Revisa todas las suscripciones activas y genera el gasto
     en expenses si aún no existe para el periodo actual.
     """
-    today = date.today()
+    today = get_today()
     client = supabase
 
     subs_res = client.table("subscriptions")\
@@ -54,7 +55,7 @@ def generate_installment_expenses(supabase, user_id: str):
     Revisa todos los planes MSI activos y genera la cuota mensual
     en expenses si aún no existe para cada periodo pendiente.
     """
-    today = date.today()
+    today = get_today()
     client = supabase
 
     plans_res = client.table("installment_plans")\

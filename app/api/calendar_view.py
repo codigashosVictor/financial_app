@@ -4,6 +4,7 @@ from fastapi.templating import Jinja2Templates
 from app.core.csrf import configure_templates
 from app.db.supabase_client import get_supabase
 from app.core.billing_cycle import get_billing_period
+from app.core.clock import today as get_today
 from datetime import date
 import calendar as cal
 
@@ -28,7 +29,7 @@ async def calendar_data(request: Request):
     if not user:
         return JSONResponse({"error": "no auth"}, status_code=401)
 
-    today  = date.today()
+    today  = get_today()
     year   = int(request.query_params.get("year",  today.year))
     month  = int(request.query_params.get("month", today.month))
 

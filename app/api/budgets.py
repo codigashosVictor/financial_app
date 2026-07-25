@@ -3,6 +3,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from app.core.csrf import configure_templates, verify_csrf
 from app.db.supabase_client import get_supabase
+from app.core.clock import today as get_today
 from datetime import date
 
 router = APIRouter()
@@ -57,7 +58,7 @@ async def budgets_page(request: Request):
     if not user:
         return RedirectResponse("/login", status_code=302)
 
-    today          = date.today()
+    today          = get_today()
     current_period = request.query_params.get("period", today.strftime("%Y-%m"))
     supabase       = get_supabase(user["access_token"])
 
@@ -201,7 +202,7 @@ async def budgets_data(request: Request):
     if not user:
         return JSONResponse({"error": "no auth"}, status_code=401)
 
-    period   = request.query_params.get("period", date.today().strftime("%Y-%m"))
+    period   = request.query_params.get("period", get_today().strftime("%Y-%m"))
     supabase = get_supabase(user["access_token"])
 
     budgets_res = supabase.table("budgets")\

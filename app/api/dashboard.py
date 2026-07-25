@@ -7,6 +7,7 @@ from app.core.billing_cycle import get_billing_period, get_payment_due_date
 from app.core.card_payments import calculate_pending_balance
 from app.core.cashflow import calculate_30d_projection, calculate_net_cashflow, month_bounds
 from app.core.income_projection import ensure_weekly_income_projections, get_or_create_income_rule
+from app.core.clock import today as get_today
 from datetime import date
 import calendar
 from dateutil.relativedelta import relativedelta
@@ -28,7 +29,7 @@ async def dashboard_data(request: Request):
         return JSONResponse({"error": "no auth"}, status_code=401)
 
     supabase = get_supabase(user["access_token"])
-    today    = date.today()
+    today    = get_today()
     import calendar as cal
 
     payroll_rule = get_or_create_income_rule(supabase, user["id"])
@@ -134,7 +135,7 @@ async def dashboard_data(request: Request):
 
     comparison = _calculate_comparison(current_expenses, prev_expenses)
 
-    # ── Flujo mensual 6 meses ────────────────────────────────────
+    # ── Flujo mensual 6 meses (gastos e ingresos) ─────────────────
     monthly_flow = {}
     for i in range(5, -1, -1):
         m = (today - relativedelta(months=i)).strftime("%Y-%m")
@@ -143,6 +144,19 @@ async def dashboard_data(request: Request):
         p = exp.get("billing_period", "")
         if p in monthly_flow:
             monthly_flow[p] += exp["amount"]
+
+    income_flow = {m: 0 for m in monthly_flow}
+    flow_start, _ = month_bounds(next(iter(monthly_flow)))
+    flow_incomes_res = supabase.table("incomes")\
+        .select("amount, income_date")\
+        .eq("user_id", user["id"])\
+        .gte("income_date", flow_start.isoformat())\
+        .lte("income_date", today.isoformat())\
+        .execute()
+    for inc in (flow_incomes_res.data or []):
+        p = inc["income_date"][:7]
+        if p in income_flow:
+            income_flow[p] += inc["amount"]
 
     # ── Categorías ───────────────────────────────────────────────
     cat_totals = {}
@@ -206,8 +220,10 @@ async def dashboard_data(request: Request):
         "urgent_card":       next_payment["card"] if next_payment else "",
         "upcoming_payments": upcoming_payments,
         "monthly_flow": {
-            "periods": list(monthly_flow.keys()),
-            "amounts": list(monthly_flow.values()),
+            "periods":        list(monthly_flow.keys()),
+            "amounts":        list(monthly_flow.values()),
+            "income_amounts": [round(v, 2) for v in income_flow.values()],
+            "net_amounts":    [round(income_flow[m] - monthly_flow[m], 2) for m in monthly_flow],
         },
         "cash_projection":   cash_projection,
         "category_totals":   cat_totals,

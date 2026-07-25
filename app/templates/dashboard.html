@@ -231,7 +231,7 @@
 
   <!-- Gráfica flujo -->
   <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-6">
-    <h3 class="text-sm font-semibold text-white mb-3">Flujo últimos 6 meses</h3>
+    <h3 class="text-sm font-semibold text-white mb-3">Ingresos vs gastos — últimos 6 meses</h3>
     <div id="chart-flow" class="w-full h-44"></div>
   </div>
 
@@ -489,24 +489,26 @@
             { month: 'short', year: '2-digit' })
         })
         const amounts = this.monthlyFlow.amounts
-        const selIdx = this.monthlyFlow.periods.indexOf(this.selectedPeriod)
+        const incomeAmounts = this.monthlyFlow.income_amounts || []
 
-        Plotly.newPlot('chart-flow', [{
-          type: 'bar', x: periods, y: amounts,
-          marker: {
-            color: amounts.map((_, i) =>
-              i === selIdx ? '#0ea5e9' : '#1e293b'),
-            line: {
-              color: amounts.map((_, i) =>
-                i === selIdx ? '#38bdf8' : '#334155'),
-              width: 1
-            }
+        Plotly.newPlot('chart-flow', [
+          {
+            type: 'bar', x: periods, y: incomeAmounts,
+            name: 'Ingresos',
+            marker: { color: '#facc15' },
+            hovertemplate: '$%{y:,.2f}<extra></extra>',
           },
-          hovertemplate: '$%{y:,.2f}<extra></extra>',
-          name: 'Gastado',
-        }], {
+          {
+            type: 'bar', x: periods, y: amounts,
+            name: 'Gastos',
+            marker: { color: '#ef4444' },
+            hovertemplate: '$%{y:,.2f}<extra></extra>',
+          },
+        ], {
+          barmode: 'group',
           paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
-          margin: { t: 10, b: 30, l: 50, r: 10 },
+          margin: { t: 30, b: 30, l: 50, r: 10 },
+          legend: { font: { color: '#94a3b8', size: 11 }, orientation: 'h', x: 0, y: 1.2, automargin: true },
           xaxis: { color: '#64748b', gridcolor: 'transparent', tickfont: { size: 11 } },
           yaxis: {
             color: '#64748b', gridcolor: '#1e293b',

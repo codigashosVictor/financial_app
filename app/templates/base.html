@@ -122,6 +122,8 @@
         class="hover:text-white transition {% if '/budgets' in request.url.path %}text-white font-medium{% endif %}">Presupuestos</a>
       <a href="/calendar/"
         class="hover:text-white transition {% if '/calendar' in request.url.path %}text-white font-medium{% endif %}">Calendario</a>
+      <a href="/reports/"
+        class="hover:text-white transition {% if '/reports' in request.url.path %}text-white font-medium{% endif %}">Reportes</a>
       <a href="/ai/"
         class="hover:text-white transition {% if '/ai' in request.url.path %}text-white font-medium{% endif %}">Asistente
         IA</a>
@@ -263,6 +265,27 @@
             </svg>
           </a>
 
+          <!-- Reportes -->
+          <a href="/reports/" @click="moreOpen = false"
+            class="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-slate-800 transition
+                            {% if '/reports' in request.url.path %}bg-slate-800 text-sky-400{% else %}text-slate-300{% endif %}">
+            <div
+              class="w-10 h-10 rounded-xl flex items-center justify-center
+                                  {% if '/reports' in request.url.path %}bg-sky-500/10{% else %}bg-slate-800{% endif %}">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M3 3v18h18M7 15l4-4 3 3 5-6" />
+              </svg>
+            </div>
+            <div>
+              <p class="text-sm font-medium">Reportes</p>
+              <p class="text-xs text-slate-500">Tendencias e historial anual</p>
+            </div>
+            <svg class="w-4 h-4 text-slate-600 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
+
           <!-- Asistente IA -->
           <a href="/ai/" @click="moreOpen = false"
             class="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-slate-800 transition
@@ -347,7 +370,7 @@
         <button @click="moreOpen = !moreOpen" class="flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition
                              {% if '/expenses' in request.url.path or '/subscriptions' in request.url.path
                                 or '/installments' in request.url.path or '/budgets' in request.url.path
-                                or '/income' in request.url.path
+                                or '/income' in request.url.path or '/reports' in request.url.path
                                 or '/ai' in request.url.path %}text-sky-400{% else %}text-slate-500{% endif %}"
           :class="moreOpen ? 'text-sky-400' : ''">
           <div class="w-6 h-6 flex flex-col items-center justify-center gap-1">

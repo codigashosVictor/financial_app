@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}Reportes{% endblock %}
+
+{% block content %}
+<div class="px-4 pt-6 max-w-lg mx-auto" x-data="reportsView()" x-init="init()">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-xl font-bold text-white">Reportes</h2>
+    <select x-model.number="months" @change="loadData()"
+      class="bg-slate-900 border border-slate-800 rounded-xl text-sm text-slate-300 px-3 py-1.5">
+      <option :value="6">Últimos 6 meses</option>
+      <option :value="12">Últimos 12 meses</option>
+      <option :value="24">Últimos 24 meses</option>
+      <option :value="36">Últimos 3 años</option>
+    </select>
+  </div>
+
+  <!-- Resumen del rango -->
+  <div class="grid grid-cols-2 gap-3 mb-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3">
+      <p class="text-xs text-slate-500">Ingresos totales</p>
+      <p class="text-xl font-bold text-yellow-400 mt-0.5" x-text="fmt(totalIncome)">$0</p>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3">
+      <p class="text-xs text-slate-500">Gastos totales</p>
+      <p class="text-xl font-bold text-red-400 mt-0.5" x-text="fmt(totalExpenses)">$0</p>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3">
+      <p class="text-xs text-slate-500">Neto del periodo</p>
+      <p class="text-xl font-bold mt-0.5"
+         :class="totalNet >= 0 ? 'text-emerald-400' : 'text-red-400'"
+         x-text="fmt(totalNet)">$0</p>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3">
+      <p class="text-xs text-slate-500">Tasa de ahorro promedio</p>
+      <p class="text-xl font-bold mt-0.5"
+         :class="avgSavingsRate >= 0 ? 'text-emerald-400' : 'text-red-400'"
+         x-text="avgSavingsRate + '%'">0%</p>
+    </div>
+  </div>
+
+  <div x-show="loading" class="text-center text-slate-500 text-sm py-10">Cargando…</div>
+
+  <template x-if="!loading && periods.length === 0">
+    <p class="text-center text-slate-600 text-sm py-10">Sin datos para este rango.</p>
+  </template>
+
+  <div x-show="!loading && periods.length > 0">
+    <!-- Ingresos vs gastos -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4">
+      <h3 class="text-sm font-semibold text-white mb-3">Ingresos vs gastos</h3>
+      <div id="chart-income-expense" class="w-full h-52"></div>
+    </div>
+
+    <!-- Tasa de ahorro -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4">
+      <h3 class="text-sm font-semibold text-white mb-3">Tasa de ahorro mensual</h3>
+      <div id="chart-savings-rate" class="w-full h-40"></div>
+    </div>
+
+    <!-- Categorías del rango -->
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-6">
+      <h3 class="text-sm font-semibold text-white mb-3">Gasto por categoría (rango completo)</h3>
+      <div x-show="hasCategories" id="chart-categories" class="w-full h-48"></div>
+      <div x-show="hasCategories" class="space-y-1.5 mt-3">
+        <template x-for="[cat, amount] in sortedCategories" :key="cat">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-400" x-text="catEmoji(cat) + ' ' + cat"></span>
+            <span class="text-slate-300 font-medium" x-text="fmt(amount)"></span>
+          </div>
+        </template>
+      </div>
+      <p x-show="!hasCategories" class="text-xs text-slate-600 text-center py-6">Sin gastos categorizados.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function reportsView() {
+    return {
+      months: 12,
+      loading: true,
+      periods: [],
+      totalIncome: 0,
+      totalExpenses: 0,
+      totalNet: 0,
+      avgSavingsRate: 0,
+      categoryTotals: {},
+      hasCategories: false,
+
+      async init() {
+        await this.loadData()
+      },
+
+      async loadData() {
+        this.loading = true
+        try {
+          const res = await safeFetch(`/reports/data?months=${this.months}`)
+          if (!res) return
+          const d = await res.json()
+
+          this.periods = d.periods || []
+          this.incomeAmounts = d.income_amounts || []
+          this.expenseAmounts = d.expense_amounts || []
+          this.netAmounts = d.net_amounts || []
+          this.savingsRate = d.savings_rate || []
+          this.categoryTotals = d.category_totals || {}
+          this.hasCategories = Object.keys(this.categoryTotals).length > 0
+          this.totalIncome = d.total_income || 0
+          this.totalExpenses = d.total_expenses || 0
+          this.totalNet = d.total_net || 0
+          this.avgSavingsRate = d.avg_savings_rate || 0
+        } finally {
+          this.loading = false
+          this.$nextTick(() => this.renderCharts())
+        }
+      },
+
+      renderCharts() {
+        if (this.periods.length === 0) return
+
+        const labels = this.periods.map(p => {
+          const [y, m] = p.split('-')
+          return new Date(y, m - 1).toLocaleDateString('es-MX',
+            { month: 'short', year: '2-digit' })
+        })
+
+        Plotly.newPlot('chart-income-expense', [
+          {
+            type: 'bar', x: labels, y: this.incomeAmounts,
+            name: 'Ingresos',
+            marker: { color: '#facc15' },
+            hovertemplate: '$%{y:,.2f}<extra></extra>',
+          },
+          {
+            type: 'bar', x: labels, y: this.expenseAmounts,
+            name: 'Gastos',
+            marker: { color: '#ef4444' },
+            hovertemplate: '$%{y:,.2f}<extra></extra>',
+          },
+        ], {
+          barmode: 'group',
+          paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+          margin: { t: 30, b: 40, l: 55, r: 10 },
+          legend: { font: { color: '#94a3b8', size: 11 }, orientation: 'h', x: 0, y: 1.15, automargin: true },
+          xaxis: { color: '#64748b', gridcolor: 'transparent', tickfont: { size: 10 } },
+          yaxis: { color: '#64748b', gridcolor: '#1e293b', tickprefix: '$', tickfont: { size: 10 } },
+        }, { responsive: true, displayModeBar: false })
+
+        Plotly.newPlot('chart-savings-rate', [{
+          type: 'scatter', mode: 'lines+markers', x: labels, y: this.savingsRate,
+          line: { color: '#10b981', width: 2 },
+          marker: { color: '#10b981', size: 5 },
+          fill: 'tozeroy', fillcolor: 'rgba(16,185,129,0.1)',
+          hovertemplate: '%{y:.1f}%<extra></extra>',
+        }], {
+          paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+          margin: { t: 10, b: 30, l: 45, r: 10 },
+          xaxis: { color: '#64748b', gridcolor: 'transparent', tickfont: { size: 10 } },
+          yaxis: { color: '#64748b', gridcolor: '#1e293b', ticksuffix: '%', tickfont: { size: 10 } },
+        }, { responsive: true, displayModeBar: false })
+
+        if (this.hasCategories) {
+          const colors = ['#0ea5e9', '#8b5cf6', '#10b981', '#f59e0b',
+            '#ef4444', '#ec4899', '#6366f1', '#64748b', '#facc15', '#14b8a6']
+          Plotly.newPlot('chart-categories', [{
+            type: 'pie', hole: 0.6,
+            values: this.sortedCategories.map(c => c[1]),
+            labels: this.sortedCategories.map(c => c[0]),
+            textinfo: 'none',
+            marker: { colors },
+            hovertemplate: '<b>%{label}</b><br>$%{value:,.2f}<br>%{percent}<extra></extra>',
+          }], {
+            paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+            showlegend: false,
+            margin: { t: 0, b: 0, l: 0, r: 0 },
+          }, { responsive: true, displayModeBar: false })
+        }
+      },
+
+      get sortedCategories() {
+        return Object.entries(this.categoryTotals).sort((a, b) => b[1] - a[1])
+      },
+
+      catEmoji(cat) {
+        const map = {
+          'Alimentación': '🍔', 'Transporte': '🚗', 'Entretenimiento': '🎬', 'Inversión': '📈',
+          'Salud': '💊', 'Ropa': '👕', 'Tecnología': '💻', 'Hogar': '🏠', 'Educación': '🎓', 'Cita Bby': '💑',
+          'Vacaciones': '🌴', 'Servicios': '⚡', 'Regalos': '🎁', 'Seguros/Mtto': '🛡️', 'Otro': '📦',
+          'Gasolina': '⛽', 'Mandado': '🛒',
+        }
+        return map[cat] || '📦'
+      },
+
+      fmt(val) {
+        return '$' + (val || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })
+      },
+    }
+  }
+</script>
+{% endblock %}

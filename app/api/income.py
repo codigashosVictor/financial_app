@@ -9,6 +9,7 @@ from app.core.cashflow import month_bounds
 from app.core.csrf import configure_templates, verify_csrf
 from app.core.income_projection import ensure_weekly_income_projections, get_or_create_income_rule
 from app.core.ownership import get_owned_income
+from app.core.clock import today as get_today
 from app.db.supabase_client import get_supabase
 
 router = APIRouter()
@@ -25,7 +26,7 @@ async def income_list(request: Request):
     if not user:
         return RedirectResponse("/login", status_code=302)
 
-    period = request.query_params.get("period", date.today().strftime("%Y-%m"))
+    period = request.query_params.get("period", get_today().strftime("%Y-%m"))
     start_date, end_date = month_bounds(period)
 
     supabase = get_supabase(user["access_token"])
@@ -52,7 +53,7 @@ async def income_list(request: Request):
             "user": user,
             "incomes": incomes,
             "period": period,
-            "today": date.today().isoformat(),
+            "today": get_today().isoformat(),
             "total_income": total_income,
             "payroll_rule": payroll_rule,
         },

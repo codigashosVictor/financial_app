@@ -5,6 +5,7 @@ from app.core.csrf import configure_templates, verify_csrf
 from app.core.ownership import get_owned_card, get_owned_card_payment
 from app.core.card_payments import calculate_pending_balance
 from app.db.supabase_client import get_supabase
+from app.core.clock import today as get_today
 from datetime import date
 from typing import Optional
 
@@ -25,7 +26,7 @@ async def payments_list(request: Request, card_id: str):
     supabase = get_supabase(user["access_token"])
     card = get_owned_card(supabase, user["id"], card_id)
 
-    default_period = date.today().strftime("%Y-%m")
+    default_period = get_today().strftime("%Y-%m")
     selected_period = request.query_params.get("period", default_period)
 
     payments_res = supabase.table("card_payments") \
@@ -58,7 +59,7 @@ async def payments_list(request: Request, card_id: str):
         "total_paid":      round(total_paid, 2),
         "pending":         balance["pending"],
         "is_paid":         balance["is_paid"],
-        "today":           date.today().isoformat(),
+        "today":           get_today().isoformat(),
     })
 
 

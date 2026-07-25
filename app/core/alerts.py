@@ -1,6 +1,7 @@
 from datetime import date
 from dateutil.relativedelta import relativedelta
 from app.core.billing_cycle import get_payment_due_date
+from app.core.clock import today as get_today
 
 PAYMENT_ALERT_DAYS = {0, 1, 3, 7}
 BUDGET_WARNING_PCT = 80
@@ -21,7 +22,7 @@ def build_payment_alerts(cards: list, expense_totals: dict, today: date = None) 
     cards: filas de credit_cards (id, name, cut_day, payment_due_day)
     expense_totals: {(card_id, period): total_gastado}
     """
-    today = today or date.today()
+    today = today or get_today()
     alerts = []
 
     for card in cards:
@@ -50,7 +51,7 @@ def build_payment_alerts(cards: list, expense_totals: dict, today: date = None) 
 
 def build_subscription_alerts(subscriptions: list, today: date = None) -> list:
     """subscriptions: filas activas con name, amount, charge_day."""
-    today = today or date.today()
+    today = today or get_today()
     day_subs = [s for s in subscriptions if s["charge_day"] == today.day]
     if not day_subs:
         return []
@@ -104,7 +105,7 @@ def build_budget_alerts(budgets: list, spent_by_category: dict) -> list:
 
 def fetch_expense_totals_for_cards(supabase, user_id: str, cards: list, today: date = None) -> dict:
     """Totales de gasto para el periodo actual y el anterior de cada tarjeta."""
-    today = today or date.today()
+    today = today or get_today()
     totals = {}
     for card in cards:
         for delta in (-1, 0):
@@ -127,7 +128,7 @@ def fetch_spent_by_category(supabase, user_id: str, period: str) -> dict:
 
 def build_alerts_for_user(supabase, user_id: str, today: date = None) -> list:
     """Junta todas las alertas (pagos, suscripciones, presupuesto) de un usuario."""
-    today = today or date.today()
+    today = today or get_today()
     period = today.strftime("%Y-%m")
 
     cards = supabase.table("credit_cards").select("*")\

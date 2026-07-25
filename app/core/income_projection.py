@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta
+from app.core.clock import today as get_today
 
 DEFAULT_WEEKLY_AMOUNT = 5100.00
 DEFAULT_PAYDAY_WEEKDAY = 4  # Friday (Monday=0)
@@ -56,7 +57,7 @@ def ensure_weekly_income_projections(
     end_date: date,
     rule: dict,
 ) -> None:
-    today = date.today()
+    today = get_today()
     existing = (
         supabase.table("incomes")
         .select("id, income_date, amount, is_projected")

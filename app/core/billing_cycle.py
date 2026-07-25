@@ -1,5 +1,6 @@
 from datetime import date
 from dateutil.relativedelta import relativedelta
+from app.core.clock import today as get_today
 import calendar
 
 def get_billing_period(expense_date: date, cut_day: int) -> str:
@@ -35,7 +36,7 @@ def get_current_period_summary(cut_day: int, payment_due_day: int) -> dict:
     """
     Devuelve info del periodo actual para mostrar en el dashboard.
     """
-    today = date.today()
+    today = get_today()
     current_period = get_billing_period(today, cut_day)
     due_date = get_payment_due_date(current_period, cut_day, payment_due_day)
     days_until_due = (due_date - today).days

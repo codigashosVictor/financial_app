@@ -2,6 +2,7 @@ import google.generativeai as genai
 from app.config import settings
 from datetime import date
 from app.core.billing_cycle import get_billing_period, get_payment_due_date
+from app.core.clock import today as get_today
 
 genai.configure(api_key=settings.GEMINI_API_KEY)
 
@@ -11,7 +12,7 @@ async def analyze_payment_strategy(
     strategy_type: str,
     current_period: str
 ) -> str:
-    today = date.today()
+    today = get_today()
 
     # Construir resumen de cada tarjeta
     card_summaries = []

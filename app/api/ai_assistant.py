@@ -4,6 +4,7 @@ from fastapi.templating import Jinja2Templates
 from app.core.csrf import configure_templates, verify_csrf
 from app.db.supabase_client import get_supabase
 from app.core.payment_strategy import analyze_payment_strategy
+from app.core.clock import today as get_today
 from datetime import date
 
 router = APIRouter()
@@ -45,7 +46,7 @@ async def ai_analyze(
         return JSONResponse({"error": "No autorizado"}, status_code=401)
 
     supabase = get_supabase(user["access_token"])
-    today = date.today()
+    today = get_today()
     current_period = today.strftime("%Y-%m")
 
     # Recopilar datos del usuario
@@ -81,7 +82,7 @@ async def ai_data(request: Request):
         return JSONResponse({"error": "No autorizado"}, status_code=401)
 
     supabase = get_supabase(user["access_token"])
-    today = date.today()
+    today = get_today()
     current_period = today.strftime("%Y-%m")
 
     cards_res = supabase.table("credit_cards")\
