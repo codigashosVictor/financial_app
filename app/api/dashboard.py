@@ -7,6 +7,7 @@ from app.core.billing_cycle import get_billing_period, get_payment_due_date
 from app.core.card_payments import calculate_pending_balance
 from app.core.cashflow import calculate_30d_projection, calculate_net_cashflow, month_bounds
 from app.core.income_projection import ensure_weekly_income_projections, get_or_create_income_rule
+from app.core.net_worth import calculate_net_worth
 from app.core.clock import today as get_today
 from datetime import date
 import calendar
@@ -72,14 +73,23 @@ async def dashboard_data(request: Request):
                 .eq("card_id", card["id"])\
                 .eq("billing_period", pay_period)\
                 .execute()
-            total = sum(e["amount"] for e in (exp_res.data or []))
+            pay_res = supabase.table("card_payments")\
+                .select("amount")\
+                .eq("user_id", user["id"])\
+                .eq("card_id", card["id"])\
+                .eq("billing_period", pay_period)\
+                .execute()
+            total_expenses = sum(e["amount"] for e in (exp_res.data or []))
+            total_paid     = sum(p["amount"] for p in (pay_res.data or []))
+            pending        = calculate_pending_balance(total_expenses, total_paid)["pending"]
             upcoming_payments.append({
                 "card":     card["name"],
                 "due_date": pay_date.strftime("%d %b %Y"),
                 "days":     days,
-                "amount":   round(total, 2),
+                "amount":   round(max(pending, 0), 2),
                 "period":   pay_period,
                 "urgent":   days <= 5,
+                "is_open":  cut_date > today,
             })
             break
     upcoming_payments.sort(key=lambda x: x["days"])
@@ -192,6 +202,25 @@ async def dashboard_data(request: Request):
         card["is_paid"]    = balance["is_paid"]
         cards_with_totals.append(card)
 
+    # ── Patrimonio neto (opcional, si el usuario tiene cuentas/deudas) ──
+    accounts_res = supabase.table("accounts")\
+        .select("id").eq("user_id", user["id"]).eq("is_active", True).execute()
+    debts_res = supabase.table("debts")\
+        .select("id").eq("user_id", user["id"]).eq("is_active", True).execute()
+    account_ids = [a["id"] for a in (accounts_res.data or [])]
+    debt_ids = [d["id"] for d in (debts_res.data or [])]
+
+    account_balances = (
+        supabase.table("account_balances").select("*").eq("user_id", user["id"]).in_("account_id", account_ids).execute().data or []
+    ) if account_ids else []
+    debt_balances = (
+        supabase.table("debt_balances").select("*").eq("user_id", user["id"]).in_("debt_id", debt_ids).execute().data or []
+    ) if debt_ids else []
+
+    cards_pending_total = sum(max(c["pending"], 0) for c in cards_with_totals)
+    net_worth = calculate_net_worth(account_balances, debt_balances, cards_pending_total)
+    has_net_worth_data = bool(account_ids or debt_ids)
+
     # ── Proyección de flujo a 30 días ───────────────────────────
     next_30_days = today + relativedelta(days=30)
     incomes_30d_res = supabase.table("incomes")\
@@ -229,6 +258,8 @@ async def dashboard_data(request: Request):
         "category_totals":   cat_totals,
         "projection":        projection,
         "comparison":        comparison,
+        "net_worth":         net_worth,
+        "has_net_worth_data": has_net_worth_data,
     })
     
 def _calculate_projection(today: date, period: str, expenses: list) -> dict:

@@ -112,6 +112,21 @@
     </div>
   </div>
 
+  <!-- Patrimonio neto -->
+  <a x-show="hasNetWorthData" href="/net-worth/"
+     class="block bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4 hover:border-slate-700 transition">
+    <div class="flex items-center justify-between">
+      <div>
+        <p class="text-xs text-slate-500 mb-1">Patrimonio neto</p>
+        <p class="text-xl font-bold" :class="netWorth.net_worth >= 0 ? 'text-emerald-400' : 'text-red-400'"
+           x-text="fmt(netWorth.net_worth)"></p>
+      </div>
+      <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+      </svg>
+    </div>
+  </a>
+
   <!-- Próximos pagos -->
   <div x-show="upcomingPayments.length > 0" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4">
     <h3 class="text-sm font-semibold text-white mb-3">Próximos pagos</h3>
@@ -129,6 +144,7 @@
                 <span x-text="p.due_date"></span> ·
                 <span x-text="p.days + 'd'"></span> ·
                 <span class="text-slate-600" x-text="p.period"></span>
+                <span x-show="p.is_open" class="text-amber-500">· aún acumulando</span>
               </p>
             </div>
           </div>
@@ -391,6 +407,8 @@
       categoryTotals: {},
       projection: {}, comparison: {},
       cashProjection: { income_30d: 0, expenses_30d: 0, net_30d: 0, is_negative: false },
+      netWorth: { total_assets: 0, total_debts: 0, net_worth: 0 },
+      hasNetWorthData: false,
 
       async init() {
         // Periodo default = hoy
@@ -426,6 +444,8 @@
           this.projection = d.projection || {}
           this.comparison = d.comparison || {}
           this.cashProjection = d.cash_projection || this.cashProjection
+          this.netWorth = d.net_worth || this.netWorth
+          this.hasNetWorthData = d.has_net_worth_data || false
           this.hasCategories = Object.keys(this.categoryTotals).length > 0
 
           // Cargar presupuestos del periodo seleccionado
