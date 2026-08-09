@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% block title %}Patrimonio Neto{% endblock %}
+
+{% block content %}
+<div class="px-4 pt-6 max-w-lg mx-auto" x-data="netWorthView()" x-init="init()">
+
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-xl font-bold text-white">Patrimonio Neto</h2>
+    <select x-model.number="months" @change="loadSeries()"
+      class="bg-slate-900 border border-slate-800 rounded-xl text-sm text-slate-300 px-3 py-1.5">
+      <option :value="6">6 meses</option>
+      <option :value="12">12 meses</option>
+      <option :value="24">24 meses</option>
+    </select>
+  </div>
+
+  <!-- Resumen -->
+  <div class="grid grid-cols-3 gap-2 mb-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3">
+      <p class="text-xs text-slate-500">Activos</p>
+      <p class="text-base font-bold text-emerald-400 mt-0.5">${{ "{:,.2f}".format(summary.total_assets) }}</p>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3">
+      <p class="text-xs text-slate-500">Deudas</p>
+      <p class="text-base font-bold text-red-400 mt-0.5">${{ "{:,.2f}".format(summary.total_debts) }}</p>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3">
+      <p class="text-xs text-slate-500">Neto</p>
+      <p class="text-base font-bold mt-0.5 {{ 'text-emerald-400' if summary.net_worth >= 0 else 'text-red-400' }}">
+        ${{ "{:,.2f}".format(summary.net_worth) }}
+      </p>
+    </div>
+  </div>
+
+  <!-- Tendencia -->
+  <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-6">
+    <h3 class="text-sm font-semibold text-white mb-3">Tendencia</h3>
+    <div x-show="loading" class="h-44 flex items-center justify-center text-slate-600 text-sm">Cargando…</div>
+    <div x-show="!loading" id="chart-net-worth" class="w-full h-44"></div>
+  </div>
+
+  <!-- Cuentas -->
+  <div class="flex items-center justify-between mb-3">
+    <h3 class="text-sm font-semibold text-white">Cuentas</h3>
+    <a href="/net-worth/cuentas/nueva" class="text-xs text-sky-400 hover:text-sky-300 transition">+ Cuenta</a>
+  </div>
+
+  {% if accounts %}
+  <div class="space-y-3 mb-6">
+    {% for account in accounts %}
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+      <div class="flex items-start justify-between mb-3">
+        <div>
+          <p class="font-semibold text-white text-sm">{{ account.name }}</p>
+          <p class="text-xs text-slate-500 mt-0.5">{{ account.type }}</p>
+        </div>
+        <p class="text-lg font-bold text-emerald-400">
+          {% if account.balance is not none %}${{ "{:,.2f}".format(account.balance) }}{% else %}—{% endif %}
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <form method="post" action="/net-worth/cuentas/{{ account.id }}/saldo" class="flex-1 flex gap-2">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+          <input type="number" name="balance" step="0.01" min="0" required placeholder="Nuevo saldo"
+            class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500
+                              focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition">
+          <button type="submit"
+            class="shrink-0 text-xs text-sky-400 border border-sky-500/20 hover:border-sky-500/50 px-3 py-2 rounded-xl transition">
+            Actualizar
+          </button>
+        </form>
+      </div>
+      <div class="flex gap-2 mt-2">
+        <a href="/net-worth/cuentas/{{ account.id }}/editar"
+          class="flex-1 text-center text-xs text-slate-400 border border-slate-700 hover:border-slate-500 py-1.5 rounded-xl transition">
+          Editar
+        </a>
+        <form method="post" action="/net-worth/cuentas/{{ account.id }}/eliminar"
+          onsubmit="return confirm('¿Eliminar {{ account.name }}?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+          <button type="submit"
+            class="text-xs text-red-400 border border-red-500/20 hover:border-red-500/50 px-3 py-1.5 rounded-xl transition">
+            Eliminar
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="bg-slate-900 border border-dashed border-slate-700 rounded-2xl p-6 text-center mb-6">
+    <p class="text-slate-400 text-sm mb-1">Sin cuentas registradas</p>
+    <p class="text-slate-600 text-xs">Agrega efectivo, ahorro o inversión</p>
+  </div>
+  {% endif %}
+
+  <!-- Deudas -->
+  <div class="flex items-center justify-between mb-3">
+    <h3 class="text-sm font-semibold text-white">Deudas</h3>
+    <a href="/net-worth/deudas/nueva" class="text-xs text-sky-400 hover:text-sky-300 transition">+ Deuda</a>
+  </div>
+
+  {% if debts %}
+  <div class="space-y-3 mb-6">
+    {% for debt in debts %}
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+      <div class="flex items-start justify-between mb-3">
+        <div>
+          <p class="font-semibold text-white text-sm">{{ debt.name }}</p>
+          <p class="text-xs text-slate-500 mt-0.5">{{ debt.type }}</p>
+        </div>
+        <p class="text-lg font-bold text-red-400">
+          {% if debt.balance is not none %}${{ "{:,.2f}".format(debt.balance) }}{% else %}—{% endif %}
+        </p>
+      </div>
+      <div class="flex items-center gap-2">
+        <form method="post" action="/net-worth/deudas/{{ debt.id }}/saldo" class="flex-1 flex gap-2">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+          <input type="number" name="balance" step="0.01" min="0" required placeholder="Nuevo saldo"
+            class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500
+                              focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition">
+          <button type="submit"
+            class="shrink-0 text-xs text-sky-400 border border-sky-500/20 hover:border-sky-500/50 px-3 py-2 rounded-xl transition">
+            Actualizar
+          </button>
+        </form>
+      </div>
+      <div class="flex gap-2 mt-2">
+        <a href="/net-worth/deudas/{{ debt.id }}/editar"
+          class="flex-1 text-center text-xs text-slate-400 border border-slate-700 hover:border-slate-500 py-1.5 rounded-xl transition">
+          Editar
+        </a>
+        <form method="post" action="/net-worth/deudas/{{ debt.id }}/eliminar"
+          onsubmit="return confirm('¿Eliminar {{ debt.name }}?')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+          <button type="submit"
+            class="text-xs text-red-400 border border-red-500/20 hover:border-red-500/50 px-3 py-1.5 rounded-xl transition">
+            Eliminar
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="bg-slate-900 border border-dashed border-slate-700 rounded-2xl p-6 text-center mb-6">
+    <p class="text-slate-400 text-sm mb-1">Sin deudas registradas</p>
+    <p class="text-slate-600 text-xs">Agrega préstamos o hipoteca (las tarjetas ya se incluyen solas)</p>
+  </div>
+  {% endif %}
+
+</div>
+
+<script>
+  function netWorthView() {
+    return {
+      months: 12,
+      loading: true,
+      periods: [],
+      assetsAmounts: [],
+      debtsAmounts: [],
+      netWorthAmounts: [],
+
+      async init() {
+        await this.loadSeries()
+      },
+
+      async loadSeries() {
+        this.loading = true
+        try {
+          const res = await safeFetch(`/net-worth/data?months=${this.months}`)
+          if (!res) return
+          const d = await res.json()
+          this.periods = d.periods || []
+          this.assetsAmounts = d.assets_amounts || []
+          this.debtsAmounts = d.debts_amounts || []
+          this.netWorthAmounts = d.net_worth_amounts || []
+        } finally {
+          this.loading = false
+          this.$nextTick(() => this.renderChart())
+        }
+      },
+
+      renderChart() {
+        if (this.periods.length === 0) return
+
+        const labels = this.periods.map(p => {
+          const [y, m] = p.split('-')
+          return new Date(y, m - 1).toLocaleDateString('es-MX', { month: 'short', year: '2-digit' })
+        })
+
+        Plotly.newPlot('chart-net-worth', [
+          {
+            type: 'scatter', mode: 'lines', x: labels, y: this.assetsAmounts,
+            name: 'Activos', line: { color: '#10b981', width: 1.5, dash: 'dot' },
+            hovertemplate: '$%{y:,.2f}<extra></extra>',
+          },
+          {
+            type: 'scatter', mode: 'lines', x: labels, y: this.debtsAmounts,
+            name: 'Deudas', line: { color: '#ef4444', width: 1.5, dash: 'dot' },
+            hovertemplate: '$%{y:,.2f}<extra></extra>',
+          },
+          {
+            type: 'scatter', mode: 'lines+markers', x: labels, y: this.netWorthAmounts,
+            name: 'Neto', line: { color: '#0ea5e9', width: 2.5 },
+            marker: { color: '#0ea5e9', size: 5 },
+            hovertemplate: '$%{y:,.2f}<extra></extra>',
+          },
+        ], {
+          paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+          margin: { t: 30, b: 30, l: 55, r: 10 },
+          legend: { font: { color: '#94a3b8', size: 10 }, orientation: 'h', x: 0, y: 1.2, automargin: true },
+          xaxis: { color: '#64748b', gridcolor: 'transparent', tickfont: { size: 10 } },
+          yaxis: { color: '#64748b', gridcolor: '#1e293b', tickprefix: '$', tickfont: { size: 10 } },
+        }, { responsive: true, displayModeBar: false })
+      },
+    }
+  }
+</script>
+{% endblock %}

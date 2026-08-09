@@ -60,3 +60,23 @@ def get_owned_income(supabase, user_id: str, income_id: str, fields: str = "*"):
         .execute(),
         "Ingreso no encontrado",
     )
+
+
+def get_owned_account(supabase, user_id: str, account_id: str, fields: str = "*", active_only: bool = False):
+    query = supabase.table("accounts")\
+        .select(fields)\
+        .eq("id", account_id)\
+        .eq("user_id", user_id)
+    if active_only:
+        query = query.eq("is_active", True)
+    return first_or_404(query.execute(), "Cuenta no encontrada")
+
+
+def get_owned_debt(supabase, user_id: str, debt_id: str, fields: str = "*", active_only: bool = False):
+    query = supabase.table("debts")\
+        .select(fields)\
+        .eq("id", debt_id)\
+        .eq("user_id", user_id)
+    if active_only:
+        query = query.eq("is_active", True)
+    return first_or_404(query.execute(), "Deuda no encontrada")

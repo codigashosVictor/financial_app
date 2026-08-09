@@ -124,6 +124,8 @@
         class="hover:text-white transition {% if '/calendar' in request.url.path %}text-white font-medium{% endif %}">Calendario</a>
       <a href="/reports/"
         class="hover:text-white transition {% if '/reports' in request.url.path %}text-white font-medium{% endif %}">Reportes</a>
+      <a href="/net-worth/"
+        class="hover:text-white transition {% if '/net-worth' in request.url.path %}text-white font-medium{% endif %}">Patrimonio</a>
       <a href="/ai/"
         class="hover:text-white transition {% if '/ai' in request.url.path %}text-white font-medium{% endif %}">Asistente
         IA</a>
@@ -286,6 +288,27 @@
             </svg>
           </a>
 
+          <!-- Patrimonio -->
+          <a href="/net-worth/" @click="moreOpen = false"
+            class="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-slate-800 transition
+                            {% if '/net-worth' in request.url.path %}bg-slate-800 text-sky-400{% else %}text-slate-300{% endif %}">
+            <div
+              class="w-10 h-10 rounded-xl flex items-center justify-center
+                                  {% if '/net-worth' in request.url.path %}bg-sky-500/10{% else %}bg-slate-800{% endif %}">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M12 8c-1.657 0-3 .672-3 1.5S10.343 11 12 11s3 .672 3 1.5S13.657 14 12 14m0-6c1.11 0 2.08.402 2.599 1M12 8V6.5M12 14v1.5m0-1.5c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <p class="text-sm font-medium">Patrimonio</p>
+              <p class="text-xs text-slate-500">Cuentas, deudas y neto</p>
+            </div>
+            <svg class="w-4 h-4 text-slate-600 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </a>
+
           <!-- Asistente IA -->
           <a href="/ai/" @click="moreOpen = false"
             class="flex items-center gap-4 px-4 py-3 rounded-xl hover:bg-slate-800 transition
@@ -371,6 +394,7 @@
                              {% if '/expenses' in request.url.path or '/subscriptions' in request.url.path
                                 or '/installments' in request.url.path or '/budgets' in request.url.path
                                 or '/income' in request.url.path or '/reports' in request.url.path
+                                or '/net-worth' in request.url.path
                                 or '/ai' in request.url.path %}text-sky-400{% else %}text-slate-500{% endif %}"
           :class="moreOpen ? 'text-sky-400' : ''">
           <div class="w-6 h-6 flex flex-col items-center justify-center gap-1">
