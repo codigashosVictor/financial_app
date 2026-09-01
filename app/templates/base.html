@@ -764,6 +764,10 @@
           await this.checkAlerts()
         } catch (e) {
           console.log('Error suscribiendo:', e)
+        } finally {
+          // El fetch global solo oculta el loader en GETs — los POST de
+          // Push no navegan a otra página, así que hay que cerrarlo aquí.
+          Loading.hide()
         }
       },
 
@@ -778,6 +782,10 @@
           localStorage.setItem('push_last_check', today)
         } catch (e) {
           console.log('Error verificando alertas:', e)
+        } finally {
+          // Es una verificación silenciosa en segundo plano — nunca debe
+          // dejar el overlay de carga pegado en pantalla.
+          Loading.hide()
         }
       },
 
