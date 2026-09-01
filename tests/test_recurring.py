@@ -1,6 +1,5 @@
-from datetime import date
-
 from app.core.billing_cycle import get_billing_period
+from app.core.clock import today as get_today
 from app.core.recurring import generate_installment_expenses, generate_subscription_expenses
 
 
@@ -47,7 +46,7 @@ class FakeSupabase:
 
 
 def test_subscription_does_not_duplicate_existing_expense():
-    billing_period = get_billing_period(date.today().replace(day=10), 15)
+    billing_period = get_billing_period(get_today().replace(day=10), 15)
     supabase = FakeSupabase({
         "subscriptions": [{
             "id": "sub-1",

@@ -1,5 +1,6 @@
-from datetime import date, timedelta
+from datetime import timedelta
 
+from app.core.clock import today as get_today
 from app.core.income_projection import ensure_weekly_income_projections
 
 
@@ -80,7 +81,7 @@ class FakeSupabase:
 
 
 def _friday_of_current_week():
-    today = date.today()
+    today = get_today()
     delta = (4 - today.weekday()) % 7
     return today + timedelta(days=delta)
 
