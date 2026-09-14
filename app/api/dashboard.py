@@ -3,8 +3,9 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from app.core.csrf import configure_templates
 from app.db.supabase_client import get_supabase
-from app.core.billing_cycle import get_billing_period, get_payment_due_date
+from app.core.billing_cycle import get_billing_period
 from app.core.card_payments import calculate_pending_balance
+from app.core.card_schedule import build_card_due_events, select_upcoming_payment_per_card
 from app.core.cashflow import calculate_30d_projection, calculate_net_cashflow, month_bounds
 from app.core.income_projection import ensure_weekly_income_projections, get_or_create_income_rule
 from app.core.net_worth import calculate_net_worth
@@ -31,7 +32,6 @@ async def dashboard_data(request: Request):
 
     supabase = get_supabase(user["access_token"])
     today    = get_today()
-    import calendar as cal
 
     payroll_rule = get_or_create_income_rule(supabase, user["id"])
     projection_end = today + relativedelta(days=120)
@@ -52,46 +52,24 @@ async def dashboard_data(request: Request):
     selected_period = request.query_params.get("period", default_period)
 
     # ── Próximos pagos (siempre basados en fecha real, no en periodo) ──
-    upcoming_payments = []
-    for card in cards:
-        for delta in [-2, -1, 0, 1]:
-            candidate = today + relativedelta(months=delta)
-            max_day   = cal.monthrange(candidate.year, candidate.month)[1]
-            cut_date  = date(candidate.year, candidate.month,
-                             min(card["cut_day"], max_day))
-            next_m    = cut_date + relativedelta(months=1)
-            max_day_n = cal.monthrange(next_m.year, next_m.month)[1]
-            pay_date  = date(next_m.year, next_m.month,
-                             min(card["payment_due_day"], max_day_n))
-            days = (pay_date - today).days
-            if days < 0:
-                continue
-            pay_period = cut_date.strftime("%Y-%m")
-            exp_res = supabase.table("expenses")\
-                .select("amount")\
-                .eq("user_id", user["id"])\
-                .eq("card_id", card["id"])\
-                .eq("billing_period", pay_period)\
-                .execute()
-            pay_res = supabase.table("card_payments")\
-                .select("amount")\
-                .eq("user_id", user["id"])\
-                .eq("card_id", card["id"])\
-                .eq("billing_period", pay_period)\
-                .execute()
-            total_expenses = sum(e["amount"] for e in (exp_res.data or []))
-            total_paid     = sum(p["amount"] for p in (pay_res.data or []))
-            pending        = calculate_pending_balance(total_expenses, total_paid)["pending"]
-            upcoming_payments.append({
-                "card":     card["name"],
-                "due_date": pay_date.strftime("%d %b %Y"),
-                "days":     days,
-                "amount":   round(max(pending, 0), 2),
-                "period":   pay_period,
-                "urgent":   days <= 5,
-                "is_open":  cut_date > today,
-            })
-            break
+    # Se miran varios ciclos hacia adelante por tarjeta: si el ciclo más
+    # próximo ya está pagado/sobrepagado (amount=0), se muestra el siguiente
+    # ciclo que sí tenga saldo pendiente, en vez de esconder un cargo real.
+    upcoming_horizon = today + relativedelta(months=4)
+    card_due_events = build_card_due_events(supabase, user["id"], cards, today, upcoming_horizon, cycles_ahead=3)
+    relevant_events = select_upcoming_payment_per_card(card_due_events)
+    upcoming_payments = [
+        {
+            "card":     e["card_name"],
+            "due_date": e["due_date"].strftime("%d %b %Y"),
+            "days":     (e["due_date"] - today).days,
+            "amount":   e["amount"],
+            "period":   e["billing_period"],
+            "urgent":   (e["due_date"] - today).days <= 5,
+            "is_open":  e["is_open"],
+        }
+        for e in relevant_events
+    ]
     upcoming_payments.sort(key=lambda x: x["days"])
     next_payment = upcoming_payments[0] if upcoming_payments else None
 

@@ -14,6 +14,7 @@ from app.api import push
 from app.api import cron
 from app.api import reports
 from app.api import net_worth
+from app.api import cashflow
 
 app = FastAPI(title="Finance App", version="1.0.0")
 
@@ -43,6 +44,7 @@ app.include_router(budgets.router, prefix="/budgets", tags=["budgets"])
 app.include_router(calendar_view.router, prefix="/calendar", tags=["calendar"])
 app.include_router(reports.router, prefix="/reports", tags=["reports"])
 app.include_router(net_worth.router, prefix="/net-worth", tags=["net-worth"])
+app.include_router(cashflow.router, prefix="/cashflow", tags=["cashflow"])
 app.include_router(push.router, prefix="/push", tags=["push"])
 app.include_router(cron.router, prefix="/cron", tags=["cron"])
 

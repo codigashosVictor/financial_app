@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+{% block title %}Mi Mes Financiero{% endblock %}
+
+{% block content %}
+<div class="px-4 pt-6 max-w-lg mx-auto" x-data="cashflowView()" x-init="init()">
+
+  <div class="flex items-center justify-between mb-4">
+    <h2 class="text-xl font-bold text-white">Mi Mes Financiero</h2>
+    <select x-model.number="horizon" @change="loadTimeline()"
+      class="bg-slate-900 border border-slate-800 rounded-xl text-sm text-slate-300 px-3 py-1.5">
+      <option :value="60">60 días</option>
+      <option :value="90">90 días</option>
+    </select>
+  </div>
+
+  <!-- Aviso: sin cuentas de efectivo registradas -->
+  <a href="/net-worth/cuentas/nueva" x-show="!loading && !hasLiquidAccounts"
+    class="block mb-4 px-4 py-3 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm">
+    <span class="font-medium">No tienes cuentas de efectivo registradas.</span>
+    <span class="block text-xs text-amber-300/80 mt-0.5">
+      Tu proyección empieza en $0 porque no hay saldo de partida. Toca aquí para agregar tu cuenta de nómina o ahorro →
+    </span>
+  </a>
+
+  <!-- Resumen -->
+  <div class="grid grid-cols-3 gap-2 mb-4" x-show="!loading">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3">
+      <p class="text-xs text-slate-500">Efectivo hoy</p>
+      <p class="text-base font-bold text-white mt-0.5" x-text="fmt(startingBalance)"></p>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3">
+      <p class="text-xs text-slate-500">Punto más bajo</p>
+      <p class="text-base font-bold mt-0.5" :class="lowestPoint && lowestPoint.balance < 0 ? 'text-red-400' : 'text-amber-400'"
+        x-text="lowestPoint ? fmt(lowestPoint.balance) : '—'"></p>
+      <p class="text-[10px] text-slate-600 mt-0.5" x-text="lowestPoint ? niceDate(lowestPoint.date) : ''"></p>
+    </div>
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3">
+      <p class="text-xs text-slate-500">Al final del periodo</p>
+      <p class="text-base font-bold mt-0.5" :class="endBalance >= 0 ? 'text-emerald-400' : 'text-red-400'"
+        x-text="fmt(endBalance)"></p>
+    </div>
+  </div>
+
+  <!-- Línea de tiempo -->
+  <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-6">
+    <h3 class="text-sm font-semibold text-white mb-3">Saldo proyectado</h3>
+    <div x-show="loading" class="h-44 flex items-center justify-center text-slate-600 text-sm">Cargando…</div>
+    <div x-show="!loading" id="chart-cashflow" class="w-full h-44"></div>
+  </div>
+
+  <!-- Próximos pagos por tarjeta -->
+  <div class="flex items-center justify-between mb-3">
+    <h3 class="text-sm font-semibold text-white">Próximos cortes de tus tarjetas</h3>
+  </div>
+  <div class="flex gap-2 overflow-x-auto pb-2 mb-6" x-show="!loading">
+    <template x-for="ev in cardEvents" :key="ev.card_name + ev.due_date">
+      <div class="shrink-0 bg-slate-900 border border-slate-800 rounded-2xl p-3 min-w-[9.5rem]">
+        <p class="text-xs text-slate-500 truncate" x-text="ev.card_name"></p>
+        <p class="text-sm font-bold text-white mt-1" x-text="fmt(ev.amount)"></p>
+        <p class="text-[10px] text-slate-600 mt-0.5" x-text="niceDate(ev.due_date)"></p>
+        <p class="text-[10px] text-amber-500 mt-0.5" x-show="ev.estimated">Estimado — corte aún abierto</p>
+      </div>
+    </template>
+    <div x-show="cardEvents.length === 0" class="text-xs text-slate-600 py-3">Sin tarjetas activas.</div>
+  </div>
+
+  <!-- Simulador de compra -->
+  <h3 class="text-sm font-semibold text-white mb-3">¿Puedo comprarlo?</h3>
+  <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-6">
+    <div class="space-y-3">
+      <input type="text" x-model="purchase.description" placeholder="¿Qué quieres comprar? Ej: Portón de casa"
+        class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500
+               focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition">
+      <div class="relative">
+        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-sm">$</span>
+        <input type="number" x-model.number="purchase.cost" step="0.01" min="0" placeholder="Costo total"
+          class="w-full bg-slate-800 border border-slate-700 rounded-xl pl-8 pr-4 py-3 text-sm text-white placeholder-slate-500
+                 focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 transition">
+      </div>
+      <button @click="simulate()" :disabled="!purchase.description || !purchase.cost || simulating"
+        class="w-full bg-sky-500 hover:bg-sky-400 disabled:opacity-40 disabled:cursor-not-allowed
+               text-white font-semibold py-3 rounded-xl transition">
+        <span x-show="!simulating">¿Puedo comprarlo?</span>
+        <span x-show="simulating">Calculando…</span>
+      </button>
+    </div>
+
+    <template x-if="result">
+      <div class="mt-4 rounded-xl p-4 border"
+        :class="{
+          'bg-emerald-500/10 border-emerald-500/20': result.status === 'ok' && result.can_buy_now,
+          'bg-amber-500/10 border-amber-500/20': result.status === 'ok' && !result.can_buy_now,
+          'bg-red-500/10 border-red-500/20': result.status !== 'ok',
+        }">
+        <template x-if="result.status === 'ok' && result.can_buy_now">
+          <div>
+            <p class="text-sm font-semibold text-emerald-400">✅ Sí, puedes comprarlo ahora</p>
+            <p class="text-xs text-slate-400 mt-1">
+              Después de la compra tu saldo proyectado más bajo sería <span class="font-medium" x-text="fmt(result.floor_after_purchase)"></span>.
+            </p>
+          </div>
+        </template>
+        <template x-if="result.status === 'ok' && !result.can_buy_now">
+          <div>
+            <p class="text-sm font-semibold text-amber-400">⏳ Espera hasta <span x-text="niceDate(result.safe_date)"></span></p>
+            <p class="text-xs text-slate-400 mt-1" x-show="result.reason">
+              <template x-if="result.reason?.type === 'income'">
+                <span>Después de tu ingreso "<span x-text="result.reason.label"></span>" el <span x-text="niceDate(result.reason.date)"></span>.</span>
+              </template>
+              <template x-if="result.reason?.type === 'card_due'">
+                <span>Después de pagar <span x-text="result.reason.label"></span> el <span x-text="niceDate(result.reason.date)"></span>.</span>
+              </template>
+            </p>
+            <p class="text-xs text-slate-400 mt-1">
+              Saldo mínimo proyectado esa fecha en adelante: <span class="font-medium" x-text="fmt(result.floor_after_purchase)"></span>.
+            </p>
+          </div>
+        </template>
+        <template x-if="result.status === 'already_negative'">
+          <div>
+            <p class="text-sm font-semibold text-red-400">⚠️ Tu flujo ya está comprometido</p>
+            <p class="text-xs text-slate-400 mt-1">
+              Sin contar esta compra, tu saldo proyectado ya cae a <span class="font-medium" x-text="fmt(result.floor_balance)"></span> en algún punto del periodo.
+            </p>
+          </div>
+        </template>
+        <template x-if="result.status === 'no_safe_date_in_horizon'">
+          <div>
+            <p class="text-sm font-semibold text-red-400">🚫 No es seguro en los próximos <span x-text="horizonUsedForSimulation"></span> días</p>
+            <p class="text-xs text-slate-400 mt-1" x-show="result.shortfall">
+              Te faltarían aproximadamente <span class="font-medium" x-text="fmt(result.shortfall)"></span>, incluso comprándolo en el mejor momento dentro de este periodo.
+            </p>
+          </div>
+        </template>
+
+        <!-- Desglose línea por línea -->
+        <div class="mt-3 pt-3 border-t border-white/10" x-show="result.breakdown">
+          <button @click="showBreakdown = !showBreakdown" class="text-xs text-sky-400 hover:text-sky-300 transition">
+            <span x-show="!showBreakdown">Ver desglose completo ↓</span>
+            <span x-show="showBreakdown">Ocultar desglose ↑</span>
+          </button>
+          <div x-show="showBreakdown" class="mt-2 space-y-1.5">
+            <div class="flex justify-between text-xs">
+              <span class="text-slate-400">Efectivo hoy</span>
+              <span class="text-white font-medium" x-text="fmt(result.breakdown?.starting_balance)"></span>
+            </div>
+            <template x-for="(line, idx) in (result.breakdown?.lines || [])" :key="idx">
+              <div class="flex justify-between items-start text-xs gap-2">
+                <span class="text-slate-400 min-w-0">
+                  <span x-text="line.type === 'income' ? '➕' : '💳'"></span>
+                  <span x-text="line.label"></span>
+                  <span class="text-slate-600" x-text="'· ' + niceDate(line.date)"></span>
+                </span>
+                <span class="shrink-0" :class="line.amount >= 0 ? 'text-emerald-400' : 'text-red-400'"
+                  x-text="(line.amount >= 0 ? '+' : '') + fmt(line.amount)"></span>
+              </div>
+            </template>
+            <div class="flex justify-between text-xs pt-1.5 mt-1.5 border-t border-white/10">
+              <span class="text-slate-300 font-medium">Al final del periodo (sin esta compra)</span>
+              <span class="text-white font-semibold" x-text="fmt(result.breakdown?.end_balance)"></span>
+            </div>
+            <div class="flex justify-between text-xs">
+              <span class="text-slate-300 font-medium">Si la compras ahora</span>
+              <span class="font-semibold" :class="(result.breakdown?.end_balance_after_purchase ?? 0) >= 0 ? 'text-emerald-400' : 'text-red-400'"
+                x-text="fmt(result.breakdown?.end_balance_after_purchase)"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+
+</div>
+
+<script>
+  function cashflowView() {
+    return {
+      horizon: 60,
+      loading: true,
+      startingBalance: 0,
+      hasLiquidAccounts: true,
+      lowestPoint: null,
+      endBalance: 0,
+      dates: [],
+      balances: [],
+      cardEvents: [],
+      purchase: { description: '', cost: null },
+      simulating: false,
+      result: null,
+      showBreakdown: false,
+      horizonUsedForSimulation: 90,
+
+      async init() {
+        await this.loadTimeline()
+      },
+
+      fmt(v) {
+        return '$' + Number(v ?? 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      },
+
+      niceDate(isoDate) {
+        if (!isoDate) return ''
+        const [y, m, d] = isoDate.split('-')
+        return new Date(y, m - 1, d).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })
+      },
+
+      async loadTimeline() {
+        this.loading = true
+        try {
+          const res = await safeFetch(`/cashflow/data?horizon=${this.horizon}`)
+          if (!res) return
+          const d = await res.json()
+          this.startingBalance = d.starting_balance || 0
+          this.hasLiquidAccounts = !!d.has_liquid_accounts
+          this.lowestPoint = d.daily_balance?.lowest_point || null
+          this.endBalance = d.daily_balance?.end_balance ?? 0
+          this.dates = d.daily_balance?.dates || []
+          this.balances = d.daily_balance?.balances || []
+          this.cardEvents = d.card_events || []
+        } finally {
+          this.loading = false
+          this.$nextTick(() => this.renderChart())
+        }
+      },
+
+      renderChart() {
+        if (this.dates.length === 0) return
+
+        const labels = this.dates.map(d => this.niceDate(d))
+
+        Plotly.newPlot('chart-cashflow', [
+          {
+            type: 'scatter', mode: 'lines', x: labels, y: this.balances,
+            name: 'Saldo proyectado', line: { color: '#0ea5e9', width: 2 },
+            fill: 'tozeroy', fillcolor: 'rgba(14, 165, 233, 0.08)',
+            hovertemplate: '$%{y:,.2f}<extra></extra>',
+          },
+        ], {
+          paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
+          margin: { t: 10, b: 30, l: 55, r: 10 },
+          xaxis: { color: '#64748b', gridcolor: 'transparent', tickfont: { size: 9 }, nticks: 8 },
+          yaxis: { color: '#64748b', gridcolor: '#1e293b', tickprefix: '$', tickfont: { size: 10 }, zerolinecolor: '#ef4444' },
+        }, { responsive: true, displayModeBar: false })
+      },
+
+      async simulate() {
+        this.simulating = true
+        this.result = null
+        this.showBreakdown = false
+        try {
+          const res = await safeFetch('/cashflow/simulate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ description: this.purchase.description, cost: this.purchase.cost }),
+          })
+          if (!res) return
+          this.result = await res.json()
+        } finally {
+          this.simulating = false
+          Loading.hide()
+        }
+      },
+    }
+  }
+</script>
+{% endblock %}

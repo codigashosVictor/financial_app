@@ -9,8 +9,11 @@ CREATE TABLE IF NOT EXISTS accounts
     name TEXT NOT NULL,
     type TEXT NOT NULL CHECK (type IN ('Efectivo', 'Ahorro', 'Inversión', 'Otro')),
     is_active BOOLEAN NOT NULL DEFAULT true,
+    is_liquid BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS is_liquid BOOLEAN NOT NULL DEFAULT true;
 
 CREATE TABLE IF NOT EXISTS account_balances
 (

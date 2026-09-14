@@ -57,6 +57,16 @@
     </div>
     {% endif %}
 
+    <label class="flex items-center gap-3 bg-slate-900 border border-slate-800 rounded-2xl p-4 cursor-pointer">
+      <input type="checkbox" name="is_liquid" value="true"
+        {{ "checked" if not account or account.is_liquid else "" }}
+        class="w-4 h-4 rounded bg-slate-800 border-slate-700 text-sky-500 focus:ring-sky-500">
+      <span>
+        <span class="block text-sm text-white">Disponible para gastos</span>
+        <span class="block text-xs text-slate-500">Se incluye como efectivo líquido en "Mi Mes Financiero"</span>
+      </span>
+    </label>
+
     <button type="submit"
       class="w-full bg-sky-500 hover:bg-sky-400 text-white font-semibold py-3.5 rounded-xl transition">
       {{ "Guardar cambios" if account else "Crear cuenta" }}

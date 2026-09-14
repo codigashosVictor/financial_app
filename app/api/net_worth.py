@@ -169,6 +169,7 @@ async def account_create(
     name: str = Form(...),
     type: str = Form(...),
     balance: Optional[float] = Form(None),
+    is_liquid: Optional[str] = Form(None),
 ):
     user = require_user(request)
     if not user:
@@ -176,7 +177,7 @@ async def account_create(
 
     supabase = get_supabase(user["access_token"])
     created = supabase.table("accounts").insert({
-        "user_id": user["id"], "name": name, "type": type,
+        "user_id": user["id"], "name": name, "type": type, "is_liquid": is_liquid is not None,
     }).execute().data or []
 
     if created and balance is not None:
@@ -210,13 +211,14 @@ async def account_update(
     _csrf: None = Depends(verify_csrf),
     name: str = Form(...),
     type: str = Form(...),
+    is_liquid: Optional[str] = Form(None),
 ):
     user = require_user(request)
     if not user:
         return RedirectResponse("/login", status_code=302)
 
     supabase = get_supabase(user["access_token"])
-    supabase.table("accounts").update({"name": name, "type": type})\
+    supabase.table("accounts").update({"name": name, "type": type, "is_liquid": is_liquid is not None})\
         .eq("id", account_id).eq("user_id", user["id"]).execute()
 
     return RedirectResponse("/net-worth/", status_code=302)
