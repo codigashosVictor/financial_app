@@ -195,7 +195,10 @@ async def dashboard_data(request: Request):
         supabase.table("debt_balances").select("*").eq("user_id", user["id"]).in_("debt_id", debt_ids).execute().data or []
     ) if debt_ids else []
 
-    cards_pending_total = sum(max(c["pending"], 0) for c in cards_with_totals)
+    # Mismo criterio que "Próximos pagos": el ciclo más próximo con saldo
+    # real por tarjeta, respetando su propio día de corte (en vez del
+    # periodo seleccionado en el dashboard, que se basa en una sola tarjeta).
+    cards_pending_total = round(sum(e["amount"] for e in relevant_events), 2)
     net_worth = calculate_net_worth(account_balances, debt_balances, cards_pending_total)
     has_net_worth_data = bool(account_ids or debt_ids)
 

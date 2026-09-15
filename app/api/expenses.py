@@ -2,9 +2,10 @@ from fastapi import APIRouter, Depends, Request, Form, File, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from app.core.csrf import configure_templates, verify_csrf
-from app.core.ownership import get_owned_card
+from app.core.ownership import get_owned_account, get_owned_card
 from app.db.supabase_client import get_supabase
 from app.core.billing_cycle import get_billing_period
+from app.core.net_worth import latest_balance_by_owner
 from app.core.ocr_processor import process_receipt_image
 from app.core.clock import today as get_today
 from datetime import date
@@ -30,7 +31,7 @@ async def expenses_list(request: Request):
     card_id = request.query_params.get("card_id", "")
 
     query = supabase.table("expenses")\
-        .select("*, credit_cards(name)")\
+        .select("*, credit_cards(name), accounts(name)")\
         .eq("user_id", user["id"])\
         .eq("billing_period", period)\
         .order("expense_date", desc=True)
@@ -115,6 +116,99 @@ async def expense_create(
         "expense_date": expense_date,
         "billing_period": billing_period,
         "source": "manual",
+    }).execute()
+
+    return RedirectResponse("/expenses/", status_code=302)
+
+@router.get("/efectivo/nuevo", response_class=HTMLResponse)
+async def cash_expense_new(request: Request):
+    user = require_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    supabase = get_supabase(user["access_token"])
+    accounts_res = supabase.table("accounts")\
+        .select("id, name")\
+        .eq("user_id", user["id"])\
+        .eq("is_active", True)\
+        .eq("is_liquid", True)\
+        .execute()
+
+    return templates.TemplateResponse("expenses/cash_form.html", {
+        "request": request,
+        "user": user,
+        "accounts": accounts_res.data or [],
+        "error": None,
+        "today": get_today().isoformat(),
+    })
+
+@router.post("/efectivo/nuevo")
+async def cash_expense_create(
+    request: Request,
+    _csrf: None = Depends(verify_csrf),
+    account_id: str = Form(...),
+    merchant: str = Form(""),
+    amount: float = Form(...),
+    category: str = Form("Otro"),
+    notes: str = Form(""),
+    expense_date: str = Form(...),
+):
+    user = require_user(request)
+    if not user:
+        return RedirectResponse("/login", status_code=302)
+
+    supabase = get_supabase(user["access_token"])
+    account = get_owned_account(supabase, user["id"], account_id, "id, name", active_only=True)
+
+    balances_res = supabase.table("account_balances")\
+        .select("account_id, balance, snapshot_date")\
+        .eq("user_id", user["id"])\
+        .eq("account_id", account_id)\
+        .execute()
+    current_balance = latest_balance_by_owner(balances_res.data or [], "account_id").get(account_id, 0)
+    new_balance = round(current_balance - amount, 2)
+
+    if new_balance < 0:
+        accounts_res = supabase.table("accounts")\
+            .select("id, name")\
+            .eq("user_id", user["id"])\
+            .eq("is_active", True)\
+            .eq("is_liquid", True)\
+            .execute()
+        return templates.TemplateResponse("expenses/cash_form.html", {
+            "request": request,
+            "user": user,
+            "accounts": accounts_res.data or [],
+            "error": f"Ese gasto excede el saldo registrado de \"{account['name']}\" (${current_balance:,.2f}). "
+                     f"Corrige el monto o actualiza el saldo de la cuenta en Patrimonio Neto si ya depositaste más.",
+            "today": get_today().isoformat(),
+        })
+
+    exp_date = date.fromisoformat(expense_date)
+    billing_period = exp_date.strftime("%Y-%m")
+
+    supabase.table("expenses").insert({
+        "user_id": user["id"],
+        "card_id": None,
+        "account_id": account_id,
+        "merchant": merchant or None,
+        "amount": amount,
+        "tax_amount": 0,
+        "category": category,
+        "notes": notes or None,
+        "expense_date": expense_date,
+        "billing_period": billing_period,
+        "source": "cash",
+    }).execute()
+
+    # Refleja el gasto de inmediato en el saldo de la cuenta líquida, para
+    # que "Mi Mes Financiero" no dependa de que el usuario actualice el
+    # saldo manualmente cada vez.
+    supabase.table("account_balances").insert({
+        "user_id": user["id"],
+        "account_id": account_id,
+        "balance": new_balance,
+        "snapshot_date": get_today().isoformat(),
     }).execute()
 
     return RedirectResponse("/expenses/", status_code=302)

@@ -17,6 +17,31 @@ def test_latest_balance_by_owner_empty_list():
     assert latest_balance_by_owner([], "account_id") == {}
 
 
+def test_latest_balance_by_owner_breaks_same_day_tie_with_created_at():
+    # snapshot_date es solo una fecha: un gasto en efectivo registrado el
+    # mismo día que el saldo inicial produce dos filas con la misma fecha.
+    # Sin created_at como desempate, se podía quedar con el saldo viejo
+    # sin importar el orden en que Supabase devolviera las filas.
+    balances = [
+        {"account_id": "a1", "balance": 5800.0, "snapshot_date": "2026-09-14", "created_at": "2026-09-15T03:17:59Z"},
+        {"account_id": "a1", "balance": 2583.5, "snapshot_date": "2026-09-14", "created_at": "2026-09-15T03:18:36Z"},
+    ]
+
+    assert latest_balance_by_owner(balances, "account_id") == {"a1": 2583.5}
+
+    # El orden en que llegan las filas no debe cambiar el resultado.
+    assert latest_balance_by_owner(list(reversed(balances)), "account_id") == {"a1": 2583.5}
+
+
+def test_latest_balance_by_owner_same_day_without_created_at_keeps_last_seen():
+    balances = [
+        {"account_id": "a1", "balance": 100, "snapshot_date": "2026-09-14"},
+        {"account_id": "a1", "balance": 200, "snapshot_date": "2026-09-14"},
+    ]
+
+    assert latest_balance_by_owner(balances, "account_id") == {"a1": 200}
+
+
 def test_calculate_net_worth_includes_card_debt():
     account_balances = [{"account_id": "a1", "balance": 10000, "snapshot_date": "2026-07-01"}]
     debt_balances = [{"debt_id": "d1", "balance": 3000, "snapshot_date": "2026-07-01"}]

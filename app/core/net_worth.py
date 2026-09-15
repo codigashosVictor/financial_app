@@ -1,14 +1,21 @@
+def _sort_key(row: dict) -> tuple:
+    """snapshot_date es solo una fecha (sin hora): si hay varios registros el
+    mismo día (ej. un gasto en efectivo justo después del saldo inicial),
+    created_at desempata cuál es realmente el más reciente."""
+    return (row["snapshot_date"], row.get("created_at") or "")
+
+
 def latest_balance_by_owner(balances: list, owner_key: str) -> dict:
     """
-    De una lista de snapshots {owner_key: id, balance, snapshot_date},
-    regresa {owner_id: balance} tomando el snapshot_date más reciente
-    por owner. En empate de fecha, se queda con el último visto.
+    De una lista de snapshots {owner_key: id, balance, snapshot_date,
+    created_at?}, regresa {owner_id: balance} tomando el más reciente por
+    owner (snapshot_date y, en empate de fecha, created_at).
     """
     latest = {}
     for row in balances:
         owner_id = row[owner_key]
         current = latest.get(owner_id)
-        if current is None or row["snapshot_date"] >= current["snapshot_date"]:
+        if current is None or _sort_key(row) >= _sort_key(current):
             latest[owner_id] = row
     return {owner_id: row["balance"] for owner_id, row in latest.items()}
 
@@ -46,7 +53,7 @@ def build_net_worth_series(
     """
     def by_period_and_owner(rows: list, owner_key: str) -> dict:
         """{period: {owner_id: balance}} usando el último snapshot <= fin de ese periodo."""
-        sorted_rows = sorted(rows, key=lambda r: r["snapshot_date"])
+        sorted_rows = sorted(rows, key=_sort_key)
         result = {}
         running = {}
         row_idx = 0

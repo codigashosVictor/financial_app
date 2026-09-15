@@ -6,6 +6,7 @@ from typing import Optional
 from app.core.csrf import configure_templates, verify_csrf
 from app.core.ownership import get_owned_account, get_owned_debt
 from app.core.card_payments import calculate_pending_balance
+from app.core.card_schedule import get_current_cards_pending_total
 from app.core.clock import today as get_today
 from app.core.reports import build_periods
 from app.core.net_worth import calculate_net_worth, build_net_worth_series
@@ -20,19 +21,6 @@ DEBT_TYPES = ["Préstamo", "Hipoteca", "Otro"]
 
 def require_user(request: Request):
     return request.session.get("user")
-
-
-def _cards_pending_total(supabase, user_id: str, period: str) -> float:
-    """Suma el saldo pendiente (no cubierto por pagos) de todas las tarjetas en un periodo."""
-    expenses_res = supabase.table("expenses")\
-        .select("amount").eq("user_id", user_id).eq("billing_period", period).execute()
-    payments_res = supabase.table("card_payments")\
-        .select("amount").eq("user_id", user_id).eq("billing_period", period).execute()
-
-    total_expenses = sum(e["amount"] for e in (expenses_res.data or []))
-    total_payments = sum(p["amount"] for p in (payments_res.data or []))
-    pending = calculate_pending_balance(total_expenses, total_payments)["pending"]
-    return max(pending, 0)
 
 
 def _cards_pending_by_period(supabase, user_id: str, periods: list) -> dict:
@@ -105,7 +93,10 @@ async def net_worth_page(request: Request):
         d["balance"] = latest_by_debt.get(d["id"], {}).get("balance")
 
     today = get_today()
-    cards_pending = _cards_pending_total(supabase, user["id"], today.strftime("%Y-%m"))
+    cards_res = supabase.table("credit_cards")\
+        .select("id, name, cut_day, payment_due_day")\
+        .eq("user_id", user["id"]).eq("is_active", True).execute()
+    cards_pending = get_current_cards_pending_total(supabase, user["id"], cards_res.data or [], today)
     summary = calculate_net_worth(account_balances, debt_balances, cards_pending)
 
     return templates.TemplateResponse("net_worth/index.html", {

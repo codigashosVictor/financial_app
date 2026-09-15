@@ -1,5 +1,7 @@
 from datetime import date
 
+from dateutil.relativedelta import relativedelta
+
 from app.core.billing_cycle import get_next_due_dates
 from app.core.card_payments import calculate_pending_balance
 
@@ -70,3 +72,17 @@ def select_upcoming_payment_per_card(card_due_events: list) -> list:
         pick = next((e for e in events_sorted if e["amount"] > 0), events_sorted[0])
         selected.append(pick)
     return selected
+
+
+def get_current_cards_pending_total(supabase, user_id: str, cards: list, today: date) -> float:
+    """
+    Suma lo que realmente se debe hoy en todas las tarjetas activas, usando
+    el mismo criterio que "Próximos pagos": el ciclo más próximo por tarjeta
+    que aún tenga saldo pendiente (o $0 si ya está saldado), respetando el
+    día de corte real de cada tarjeta — en vez de un mes calendario único o
+    el corte de una sola tarjeta, que pueden dar números distintos entre sí.
+    """
+    horizon_end = today + relativedelta(months=4)
+    events = build_card_due_events(supabase, user_id, cards, today, horizon_end, cycles_ahead=3)
+    relevant = select_upcoming_payment_per_card(events)
+    return round(sum(e["amount"] for e in relevant), 2)
