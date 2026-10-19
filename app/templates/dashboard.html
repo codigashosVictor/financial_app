@@ -2,28 +2,40 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<div class="px-4 pt-6 max-w-lg mx-auto" x-data="dashboard()" x-init="init()">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+  #dash-root { font-family: 'IBM Plex Sans', 'Inter', system-ui, sans-serif; }
+  #dash-root :focus-visible {
+    outline: 2px solid #60a5fa;
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+</style>
+
+<div id="dash-root" class="px-4 pt-6 max-w-lg md:max-w-4xl lg:max-w-6xl mx-auto" x-data="dashboard()" x-init="init()">
 
   <!-- Saludo + selector de periodo -->
   <div class="flex items-start justify-between mb-5">
     <div>
-      <p class="text-slate-500 text-sm">Bienvenido 👋</p>
+      <p class="text-slate-400 text-sm">Bienvenido</p>
       <h2 class="text-xl font-bold text-white">{{ user.email.split('@')[0] | title }}</h2>
     </div>
     <!-- Selector de periodo -->
     <div class="flex items-center gap-2">
-      <button @click="prevPeriod()" class="w-8 h-8 flex items-center justify-center rounded-xl
-                           bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition text-lg">
-        ‹
+      <button @click="prevPeriod()" aria-label="Periodo anterior" class="w-8 h-8 flex items-center justify-center rounded-xl
+                           bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>
       </button>
       <div class="text-center">
-        <p class="text-xs text-slate-600">Periodo</p>
+        <p class="text-xs text-slate-500">Periodo</p>
         <p class="text-sm font-semibold text-slate-300 min-w-[72px] text-center" x-text="selectedPeriod">—</p>
       </div>
-      <button @click="nextPeriod()" :disabled="selectedPeriod >= defaultPeriod" class="w-8 h-8 flex items-center justify-center rounded-xl
+      <button @click="nextPeriod()" :disabled="selectedPeriod >= defaultPeriod" aria-label="Periodo siguiente" class="w-8 h-8 flex items-center justify-center rounded-xl
                            bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white
-                           disabled:opacity-30 disabled:cursor-not-allowed transition text-lg">
-        ›
+                           disabled:opacity-30 disabled:cursor-not-allowed transition">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
       </button>
     </div>
   </div>
@@ -31,82 +43,107 @@
   <!-- Badge "periodo actual" -->
   <div x-show="!isCurrent" x-transition class="mb-4 flex items-center justify-between
                 bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-2">
-    <div class="flex items-center gap-2">
-      <span class="text-amber-400 text-sm">📅</span>
-      <span class="text-xs text-amber-400">
-        Viendo periodo histórico <span x-text="selectedPeriod"></span>
-      </span>
-    </div>
-    <button @click="goToCurrent()" class="text-xs text-sky-400 hover:text-sky-300 transition font-medium">
+    <span class="text-xs text-amber-400">
+      Viendo periodo histórico <span x-text="selectedPeriod"></span>
+    </span>
+    <button @click="goToCurrent()" class="text-xs text-blue-400 hover:text-blue-300 transition font-medium">
       Ir al actual →
     </button>
   </div>
 
   <!-- Alerta pago urgente -->
   <div x-show="daysUntilDue > 0 && daysUntilDue <= 5" x-transition
-    class="bg-red-500/10 border border-red-500/30 rounded-2xl px-4 py-3 mb-4 flex items-center gap-3">
-    <span class="text-xl">🚨</span>
-    <div>
-      <p class="text-sm font-semibold text-red-400">Pago urgente</p>
-      <p class="text-xs text-slate-400">
-        <span x-text="urgentCard"></span> vence en
-        <span x-text="daysUntilDue"></span> días —
-        <span x-text="nextDueDate"></span>
-      </p>
+    class="bg-red-500/10 border border-red-500/30 border-l-4 border-l-red-500 rounded-2xl px-4 py-3 mb-4">
+    <p class="text-sm font-semibold text-red-400">Pago urgente</p>
+    <p class="text-xs text-slate-400">
+      <span x-text="urgentCard"></span> vence en
+      <span x-text="daysUntilDue"></span> días —
+      <span x-text="nextDueDate"></span>
+    </p>
+  </div>
+
+  <!-- Hero: gasto total del periodo -->
+  <div class="bg-slate-900 border border-slate-800 border-l-4 border-l-blue-500 rounded-2xl p-5 mb-3">
+    <div class="flex items-start justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0" aria-hidden="true">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2" /><circle cx="12" cy="12" r="2" /></svg>
+        </div>
+        <div>
+          <p class="text-xs text-slate-400">Gastado — periodo <span x-text="selectedPeriod" class="text-slate-300"></span></p>
+          <p class="text-3xl font-bold text-white tracking-tight" x-text="fmt(totalMonth)">$0</p>
+        </div>
+      </div>
+      <div x-show="comparison.total_pct_change !== undefined" class="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold shrink-0"
+        :class="comparison.total_direction === 'up' ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400'">
+        <span x-text="comparison.total_direction === 'up' ? '↑' : '↓'" aria-hidden="true"></span>
+        <span x-text="Math.abs(comparison.total_pct_change || 0) + '%'"></span>
+      </div>
     </div>
   </div>
 
-  <!-- Cards resumen -->
-  <div class="grid grid-cols-2 gap-3 mb-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-      <p class="text-xs text-slate-500 mb-1">Gastado</p>
-      <p class="text-2xl font-bold text-white" x-text="fmt(totalMonth)">$0</p>
-      <p class="text-xs text-slate-500 mt-1">
-        periodo <span x-text="selectedPeriod" class="text-slate-400"></span>
-      </p>
-    </div>
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-      <p class="text-xs text-slate-500 mb-1">Próximo pago</p>
-      <p class="text-2xl font-bold" :class="daysUntilDue <= 5 ? 'text-red-400' :
-                       daysUntilDue <= 10 ? 'text-amber-400' : 'text-emerald-400'"
+  <div class="grid grid-cols-3 gap-3 mb-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center mb-2"
+        :class="daysUntilDue <= 5 ? 'bg-red-500/10 text-red-400' : daysUntilDue <= 10 ? 'bg-amber-500/10 text-amber-400' : 'bg-green-500/10 text-green-400'" aria-hidden="true">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" /></svg>
+      </div>
+      <p class="text-xs text-slate-400 mb-0.5">Próx. pago</p>
+      <p class="text-lg font-bold" :class="daysUntilDue <= 5 ? 'text-red-400' :
+                       daysUntilDue <= 10 ? 'text-amber-400' : 'text-green-400'"
         x-text="daysUntilDue > 0 ? daysUntilDue + 'd' : '—'">—</p>
-      <p class="text-xs text-slate-500 mt-1" x-text="urgentCard"></p>
+      <p class="text-xs text-slate-400 truncate" x-text="urgentCard"></p>
     </div>
-  </div>
-
-  <div class="grid grid-cols-2 gap-3 mb-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-      <p class="text-xs text-slate-500 mb-1">Ingresos</p>
-      <p class="text-2xl font-bold text-emerald-400" x-text="fmt(totalIncome)">$0</p>
-      <p class="text-xs text-slate-500 mt-1">del periodo</p>
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3">
+      <div class="w-8 h-8 rounded-lg bg-green-500/10 text-green-400 flex items-center justify-center mb-2" aria-hidden="true">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 7-8" /><path d="M14 7h7v7" /></svg>
+      </div>
+      <p class="text-xs text-slate-400 mb-0.5">Ingresos</p>
+      <p class="text-lg font-bold text-green-400" x-text="fmt(totalIncome)">$0</p>
+      <p class="text-xs text-slate-400">del periodo</p>
     </div>
-    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-      <p class="text-xs text-slate-500 mb-1">Neto</p>
-      <p class="text-2xl font-bold" :class="netCashflow < 0 ? 'text-red-400' : 'text-emerald-400'"
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-3">
+      <div class="w-8 h-8 rounded-lg flex items-center justify-center mb-2"
+        :class="netCashflow < 0 ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400'" aria-hidden="true">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round"><path d="M7 17V7m0 0L3 11m4-4l4 4" /><path d="M17 7v10m0 0l4-4m-4 4l-4-4" /></svg>
+      </div>
+      <p class="text-xs text-slate-400 mb-0.5">Neto</p>
+      <p class="text-lg font-bold" :class="netCashflow < 0 ? 'text-red-400' : 'text-green-400'"
          x-text="fmt(netCashflow)">$0</p>
-      <p class="text-xs text-slate-500 mt-1">ingresos - gastos</p>
+      <p class="text-xs text-slate-400">ingr. − gastos</p>
     </div>
   </div>
 
-  <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4">
+  <div class="space-y-4 md:space-y-0 md:grid md:grid-cols-2 md:gap-4 md:items-start mb-4">
+  <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4" :class="hasNetWorthData ? '' : 'md:col-span-2'">
     <div class="flex items-center justify-between mb-3">
-      <h3 class="text-sm font-semibold text-white">Caja próxima 30 días</h3>
+      <h3 class="flex items-center gap-2 text-sm font-semibold text-white">
+        <span class="w-6 h-6 rounded-md bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0" aria-hidden="true">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 7-8M21 7v6h-6" /></svg>
+        </span>
+        Caja próxima 30 días
+      </h3>
       <span class="text-xs font-semibold px-2 py-1 rounded-lg"
-            :class="cashProjection.is_negative ? 'bg-red-500/10 text-red-400' : 'bg-emerald-500/10 text-emerald-400'"
+            :class="cashProjection.is_negative ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400'"
             x-text="cashProjection.is_negative ? 'Riesgo de falta de caja' : 'Cobertura positiva'"></span>
     </div>
     <div class="grid grid-cols-3 gap-2">
       <div class="bg-slate-800/50 rounded-xl p-3 text-center">
-        <p class="text-xs text-slate-500 mb-1">Entradas</p>
-        <p class="text-sm font-bold text-emerald-400" x-text="fmt(cashProjection.income_30d)"></p>
+        <p class="text-xs text-slate-400 mb-1">Entradas</p>
+        <p class="text-sm font-bold text-green-400" x-text="fmt(cashProjection.income_30d)"></p>
       </div>
       <div class="bg-slate-800/50 rounded-xl p-3 text-center">
-        <p class="text-xs text-slate-500 mb-1">Salidas</p>
+        <p class="text-xs text-slate-400 mb-1">Salidas</p>
         <p class="text-sm font-bold text-red-400" x-text="fmt(cashProjection.expenses_30d)"></p>
       </div>
       <div class="bg-slate-800/50 rounded-xl p-3 text-center">
-        <p class="text-xs text-slate-500 mb-1">Neto 30d</p>
-        <p class="text-sm font-bold" :class="cashProjection.net_30d < 0 ? 'text-red-400' : 'text-emerald-400'"
+        <p class="text-xs text-slate-400 mb-1">Neto 30d</p>
+        <p class="text-sm font-bold" :class="cashProjection.net_30d < 0 ? 'text-red-400' : 'text-green-400'"
            x-text="fmt(cashProjection.net_30d)"></p>
       </div>
     </div>
@@ -114,43 +151,58 @@
 
   <!-- Patrimonio neto -->
   <a x-show="hasNetWorthData" href="/net-worth/"
-     class="block bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4 hover:border-slate-700 transition">
+     class="block bg-slate-900 border border-slate-800 rounded-2xl p-4 hover:border-slate-700 transition md:h-full">
     <div class="flex items-center justify-between">
-      <div>
-        <p class="text-xs text-slate-500 mb-1">Patrimonio neto</p>
-        <p class="text-xl font-bold" :class="netWorth.net_worth >= 0 ? 'text-emerald-400' : 'text-red-400'"
-           x-text="fmt(netWorth.net_worth)"></p>
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-violet-500/10 text-violet-400 flex items-center justify-center shrink-0" aria-hidden="true">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5 9-5z" /><path d="M3 13l9 5 9-5" /></svg>
+        </div>
+        <div>
+          <p class="text-xs text-slate-400 mb-0.5">Patrimonio neto</p>
+          <p class="text-xl font-bold" :class="netWorth.net_worth >= 0 ? 'text-green-400' : 'text-red-400'"
+             x-text="fmt(netWorth.net_worth)"></p>
+        </div>
       </div>
-      <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
       </svg>
     </div>
   </a>
+  </div>
 
+  <div class="space-y-4 md:space-y-0 md:grid md:grid-cols-2 md:gap-4 md:items-start mb-4">
   <!-- Próximos pagos -->
-  <div x-show="upcomingPayments.length > 0" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4">
-    <h3 class="text-sm font-semibold text-white mb-3">Próximos pagos</h3>
-    <div class="space-y-2">
+  <div x-show="upcomingPayments.length > 0" class="bg-slate-900 border border-slate-800 rounded-2xl p-4"
+    :class="(isCurrent && projection.days_total > 0) ? '' : 'md:col-span-2'">
+    <h3 class="flex items-center gap-2 text-sm font-semibold text-white mb-3">
+      <span class="w-6 h-6 rounded-md bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0" aria-hidden="true">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round"><path d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 00-4-5.7V5a2 2 0 10-4 0v.3A6 6 0 006 11v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+      </span>
+      Próximos pagos
+    </h3>
+    <div class="divide-y divide-slate-800">
       <template x-for="p in upcomingPayments" :key="p.card">
-        <div class="flex items-center justify-between py-1 cursor-pointer"
+        <div class="flex items-center justify-between py-2.5 cursor-pointer"
           @click="selectedPeriod = p.period; loadData()">
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-3 min-w-0">
             <div class="w-2 h-2 rounded-full shrink-0" :class="p.days <= 5 ? 'bg-red-500' :
-                                     p.days <= 10 ? 'bg-amber-500' : 'bg-emerald-500'">
+                                     p.days <= 10 ? 'bg-amber-500' : 'bg-green-500'" aria-hidden="true">
             </div>
-            <div>
-              <p class="text-sm font-medium text-white" x-text="p.card"></p>
-              <p class="text-xs text-slate-500">
+            <div class="min-w-0">
+              <p class="text-sm font-medium text-white truncate" x-text="p.card"></p>
+              <p class="text-xs text-slate-400">
                 <span x-text="p.due_date"></span> ·
                 <span x-text="p.days + 'd'"></span> ·
-                <span class="text-slate-600" x-text="p.period"></span>
-                <span x-show="p.is_open" class="text-amber-500">· aún acumulando</span>
+                <span class="text-slate-500" x-text="p.period"></span>
+                <span x-show="p.is_open" class="text-amber-400">· aún acumulando</span>
               </p>
             </div>
           </div>
-          <div class="text-right">
+          <div class="text-right shrink-0 ml-3">
             <p class="text-sm font-bold" :class="p.urgent ? 'text-red-400' : 'text-white'" x-text="fmt(p.amount)"></p>
-            <p class="text-xs text-slate-600">a pagar</p>
+            <p class="text-xs text-slate-500">a pagar</p>
           </div>
         </div>
       </template>
@@ -159,70 +211,87 @@
 
   <!-- Proyección (solo periodo actual) -->
   <div x-show="isCurrent && projection.days_total > 0"
-    class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4">
+    class="bg-slate-900 border border-slate-800 rounded-2xl p-4"
+    :class="upcomingPayments.length > 0 ? '' : 'md:col-span-2'">
     <div class="flex items-center justify-between mb-3">
-      <h3 class="text-sm font-semibold text-white">Proyección del mes</h3>
-      <span class="text-xs text-slate-500"
+      <h3 class="flex items-center gap-2 text-sm font-semibold text-white">
+        <span class="w-6 h-6 rounded-md bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0" aria-hidden="true">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M7 15l4-4 3 3 5-6" /></svg>
+        </span>
+        Proyección del mes
+      </h3>
+      <span class="text-xs text-slate-400"
         x-text="projection.days_elapsed + '/' + projection.days_total + ' días'"></span>
     </div>
     <div class="mb-4">
-      <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-        <div class="h-full bg-sky-500 rounded-full transition-all" :style="`width: ${projection.pct_period}%`"></div>
+      <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden" role="progressbar"
+        :aria-valuenow="Math.round(projection.pct_period || 0)" aria-valuemin="0" aria-valuemax="100"
+        aria-label="Progreso del periodo">
+        <div class="h-full bg-blue-500 rounded-full transition-all" :style="`width: ${projection.pct_period}%`"></div>
       </div>
     </div>
     <div class="grid grid-cols-3 gap-2">
       <div class="bg-slate-800/50 rounded-xl p-3 text-center">
-        <p class="text-xs text-slate-500 mb-1">Gastado</p>
+        <p class="text-xs text-slate-400 mb-1">Gastado</p>
         <p class="text-sm font-bold text-white" x-text="fmt(totalMonth)"></p>
       </div>
       <div class="bg-slate-800/50 rounded-xl p-3 text-center">
-        <p class="text-xs text-slate-500 mb-1">Proyectado</p>
+        <p class="text-xs text-slate-400 mb-1">Proyectado</p>
         <p class="text-sm font-bold text-amber-400" x-text="fmt(projection.projected)"></p>
       </div>
       <div class="bg-slate-800/50 rounded-xl p-3 text-center">
-        <p class="text-xs text-slate-500 mb-1">Promedio/día</p>
+        <p class="text-xs text-slate-400 mb-1">Promedio/día</p>
         <p class="text-sm font-bold text-slate-300" x-text="fmt(projection.daily_avg)"></p>
       </div>
     </div>
+  </div>
   </div>
 
   <!-- Comparativa -->
   <div x-show="comparison.changes && comparison.changes.length > 0"
     class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4">
     <div class="flex items-center justify-between mb-3">
-      <h3 class="text-sm font-semibold text-white">vs periodo anterior</h3>
+      <h3 class="flex items-center gap-2 text-sm font-semibold text-white">
+        <span class="w-6 h-6 rounded-md bg-slate-800 text-slate-400 flex items-center justify-center shrink-0" aria-hidden="true">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round"><path d="M7 17V7m0 0L3 11m4-4l4 4" /><path d="M17 7v10m0 0l4-4m-4 4l-4-4" /></svg>
+        </span>
+        vs periodo anterior
+      </h3>
       <div class="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold" :class="comparison.total_direction === 'up'
                      ? 'bg-red-500/10 text-red-400'
-                     : 'bg-emerald-500/10 text-emerald-400'">
-        <span x-text="comparison.total_direction === 'up' ? '↑' : '↓'"></span>
+                     : 'bg-green-500/10 text-green-400'">
+        <span x-text="comparison.total_direction === 'up' ? '↑' : '↓'" aria-hidden="true"></span>
         <span x-text="Math.abs(comparison.total_pct_change) + '%'"></span>
       </div>
     </div>
     <div class="flex items-center justify-between mb-3 pb-3 border-b border-slate-800">
       <div>
-        <p class="text-xs text-slate-500">Periodo anterior</p>
-        <p class="text-sm font-semibold text-slate-400" x-text="fmt(comparison.total_previous)"></p>
+        <p class="text-xs text-slate-400">Periodo anterior</p>
+        <p class="text-sm font-semibold text-slate-300" x-text="fmt(comparison.total_previous)"></p>
       </div>
-      <svg class="w-4 h-4 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg class="w-4 h-4 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
       </svg>
       <div class="text-right">
-        <p class="text-xs text-slate-500">Este periodo</p>
+        <p class="text-xs text-slate-400">Este periodo</p>
         <p class="text-sm font-semibold text-white" x-text="fmt(comparison.total_current)"></p>
       </div>
     </div>
-    <div class="space-y-2">
+    <div class="divide-y divide-slate-800/60">
       <template x-for="item in comparison.changes" :key="item.category">
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between py-1.5">
           <div class="flex items-center gap-2 min-w-0">
-            <span x-text="catEmoji(item.category)" class="text-base shrink-0"></span>
-            <span class="text-xs text-slate-400 truncate" x-text="item.category"></span>
+            <span class="w-5 h-5 rounded-md bg-slate-800 border border-slate-700 flex items-center justify-center
+                         text-[10px] font-semibold text-slate-400 shrink-0" x-text="catInitial(item.category)" aria-hidden="true"></span>
+            <span class="text-xs text-slate-300 truncate" x-text="item.category"></span>
           </div>
           <div class="flex items-center gap-2 shrink-0">
-            <span class="text-xs text-slate-600" x-text="fmt(item.previous)"></span>
+            <span class="text-xs text-slate-500" x-text="fmt(item.previous)"></span>
             <span class="text-xs font-semibold px-1.5 py-0.5 rounded-md" :class="item.direction === 'up'
                                   ? 'bg-red-500/10 text-red-400'
-                                  : 'bg-emerald-500/10 text-emerald-400'">
+                                  : 'bg-green-500/10 text-green-400'">
               <span x-text="item.direction === 'up' ? '↑' : '↓'"></span>
               <span x-text="Math.abs(item.pct_change) + '%'"></span>
             </span>
@@ -233,29 +302,50 @@
     </div>
   </div>
 
+  <div class="space-y-4 md:space-y-0 md:grid md:grid-cols-2 md:gap-4 md:items-start mb-6">
   <!-- Gráfica categorías -->
-  <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4">
+  <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
     <div class="flex items-center justify-between mb-3">
-      <h3 class="text-sm font-semibold text-white">Por categoría</h3>
-      <span class="text-xs text-slate-500" x-text="selectedPeriod"></span>
+      <h3 class="flex items-center gap-2 text-sm font-semibold text-white">
+        <span class="w-6 h-6 rounded-md bg-violet-500/10 text-violet-400 flex items-center justify-center shrink-0" aria-hidden="true">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8" /><path d="M12 4v8l6 3" /></svg>
+        </span>
+        Por categoría
+      </h3>
+      <span class="text-xs text-slate-400" x-text="selectedPeriod"></span>
     </div>
-    <div x-show="hasCategories" id="chart-category" class="w-full h-52"></div>
-    <div x-show="!hasCategories" class="h-32 flex items-center justify-center text-slate-600 text-sm">
+    <div x-show="hasCategories" id="chart-category" class="w-full h-52" role="img"
+      :aria-label="'Distribución de gastos por categoría: ' + Object.entries(categoryTotals).map(([c,v]) => c + ' ' + fmt(v)).join(', ')"></div>
+    <div x-show="!hasCategories" class="h-32 flex items-center justify-center text-slate-500 text-sm">
       Sin gastos en este periodo
     </div>
   </div>
 
   <!-- Gráfica flujo -->
-  <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-6">
-    <h3 class="text-sm font-semibold text-white mb-3">Ingresos vs gastos — últimos 6 meses</h3>
-    <div id="chart-flow" class="w-full h-44"></div>
+  <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+    <h3 class="flex items-center gap-2 text-sm font-semibold text-white mb-3">
+      <span class="w-6 h-6 rounded-md bg-green-500/10 text-green-400 flex items-center justify-center shrink-0" aria-hidden="true">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9m6 10V5m6 14v-7" /></svg>
+      </span>
+      Ingresos vs gastos — últimos 6 meses
+    </h3>
+    <div id="chart-flow" class="w-full h-44" role="img" aria-label="Comparativa de ingresos y gastos de los últimos 6 meses"></div>
+  </div>
   </div>
 
   <!-- Presupuestos widget -->
   <div x-show="budgets.length > 0" class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4">
     <div class="flex items-center justify-between mb-3">
-      <h3 class="text-sm font-semibold text-white">Presupuestos</h3>
-      <a href="/budgets/" class="text-xs text-sky-400 hover:text-sky-300 transition">
+      <h3 class="flex items-center gap-2 text-sm font-semibold text-white">
+        <span class="w-6 h-6 rounded-md bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0" aria-hidden="true">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+            stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="4" /><circle cx="12" cy="12" r="0.6" fill="currentColor" /></svg>
+        </span>
+        Presupuestos
+      </h3>
+      <a href="/budgets/" class="text-xs text-blue-400 hover:text-blue-300 transition">
         Gestionar →
       </a>
     </div>
@@ -263,20 +353,19 @@
       <template x-for="b in budgets" :key="b.category">
         <div>
           <div class="flex items-center justify-between mb-1">
-            <div class="flex items-center gap-1.5">
-              <span x-text="b.emoji" class="text-sm"></span>
-              <span class="text-xs text-slate-400" x-text="b.category"></span>
-            </div>
+            <span class="text-xs text-slate-300" x-text="b.category"></span>
             <div class="flex items-center gap-1.5">
               <span class="text-xs font-medium" :class="b.status==='over' ? 'text-red-400' :
                                           b.status==='warning' ? 'text-amber-400' : 'text-slate-300'"
                 x-text="fmt(b.spent)"></span>
-              <span class="text-xs text-slate-600" x-text="'/ ' + fmt(b.budgeted)"></span>
+              <span class="text-xs text-slate-500" x-text="'/ ' + fmt(b.budgeted)"></span>
             </div>
           </div>
-          <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+          <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden" role="progressbar"
+            :aria-valuenow="Math.round(b.pct || 0)" aria-valuemin="0" aria-valuemax="100"
+            :aria-label="b.category + ' presupuesto'">
             <div class="h-full rounded-full transition-all" :class="b.status==='over' ? 'bg-red-500' :
-                                     b.status==='warning' ? 'bg-amber-500' : 'bg-emerald-500'"
+                                     b.status==='warning' ? 'bg-amber-500' : 'bg-green-500'"
               :style="`width: ${b.pct}%`"></div>
           </div>
         </div>
@@ -284,36 +373,45 @@
     </div>
   </div>
 
+  <div class="space-y-6 md:space-y-0 md:grid md:grid-cols-2 md:gap-4 md:items-start">
+  <div>
   <!-- Tarjetas -->
-  <h3 class="text-sm font-semibold text-slate-400 mb-3">Mis tarjetas</h3>
-  <div class="space-y-3 mb-6">
+  <h3 class="flex items-center gap-2 text-sm font-semibold text-slate-300 mb-3">
+    <span class="w-6 h-6 rounded-md bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0" aria-hidden="true">
+      <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+        stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2" /><path d="M3 10h18" /></svg>
+    </span>
+    Mis tarjetas
+  </h3>
+  <div class="space-y-3">
     <template x-if="cards.length === 0">
       <div class="bg-slate-900 border border-dashed border-slate-700 rounded-2xl p-6 text-center">
-        <p class="text-slate-500 text-sm">No tienes tarjetas registradas</p>
-        <a href="/cards/nuevo" class="text-sky-400 text-sm font-medium mt-2 block">
+        <p class="text-slate-400 text-sm">No tienes tarjetas registradas</p>
+        <a href="/cards/nuevo" class="text-blue-400 text-sm font-medium mt-2 block">
           + Agregar tarjeta
         </a>
       </div>
     </template>
     <template x-for="card in cards" :key="card.id">
-      <div class="block bg-slate-900 border border-slate-800 rounded-2xl p-4
-                      hover:border-slate-700 transition">
+      <div class="block bg-slate-900 border border-slate-800 border-l-4 rounded-2xl p-4
+                      hover:border-slate-700 transition"
+        :class="card.is_paid ? 'border-l-green-500' : (card.total || 0) > 0 ? 'border-l-amber-500' : 'border-l-slate-700'">
         <div class="flex items-center justify-between">
           <div>
             <p class="font-medium text-white text-sm" x-text="card.name"></p>
-            <p class="text-xs text-slate-500 mt-0.5">
+            <p class="text-xs text-slate-400 mt-0.5">
               Corte <span x-text="card.cut_day"></span> ·
               Pago <span x-text="card.payment_due_day"></span>
             </p>
           </div>
           <div class="text-right">
             <p class="text-sm font-semibold text-white" x-text="fmt(card.total || 0)"></p>
-            <p class="text-xs text-slate-500">este periodo</p>
+            <p class="text-xs text-slate-400">este periodo</p>
             <template x-if="card.is_paid && card.pending < 0">
-              <p class="text-xs text-sky-400 font-medium mt-0.5">Saldo a favor</p>
+              <p class="text-xs text-blue-400 font-medium mt-0.5">Saldo a favor</p>
             </template>
             <template x-if="card.is_paid && card.pending >= 0">
-              <p class="text-xs text-emerald-400 font-medium mt-0.5">Pagada</p>
+              <p class="text-xs text-green-400 font-medium mt-0.5">Pagada</p>
             </template>
             <template x-if="!card.is_paid && (card.total || 0) > 0">
               <p class="text-xs text-amber-400 font-medium mt-0.5"
@@ -323,13 +421,15 @@
         </div>
         <template x-if="card.credit_limit && card.credit_limit > 0">
           <div class="mt-3">
-            <div class="flex justify-between text-xs text-slate-600 mb-1">
+            <div class="flex justify-between text-xs text-slate-500 mb-1">
               <span>Uso del límite</span>
               <span x-text="Math.round((card.total/card.credit_limit)*100)+'%'"></span>
             </div>
-            <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+            <div class="h-1.5 bg-slate-800 rounded-full overflow-hidden" role="progressbar"
+              :aria-valuenow="Math.round((card.total/card.credit_limit)*100)" aria-valuemin="0" aria-valuemax="100"
+              aria-label="Uso del límite de crédito">
               <div class="h-full rounded-full transition-all" :class="(card.total/card.credit_limit)>0.8 ? 'bg-red-500' :
-                                         (card.total/card.credit_limit)>0.5 ? 'bg-amber-500' : 'bg-emerald-500'"
+                                         (card.total/card.credit_limit)>0.5 ? 'bg-amber-500' : 'bg-green-500'"
                 :style="`width:${Math.min((card.total/card.credit_limit)*100,100)}%`">
               </div>
             </div>
@@ -341,41 +441,49 @@
             Ver gastos
           </a>
           <a :href="`/card-payments/${card.id}?period=${selectedPeriod}`"
-             class="flex-1 text-center text-xs text-sky-400 hover:text-sky-300 transition">
+             class="flex-1 text-center text-xs text-blue-400 hover:text-blue-300 transition">
             Ver pagos
           </a>
         </div>
       </div>
     </template>
   </div>
+  </div>
 
+  <div>
   <!-- Últimos gastos -->
   <div class="flex items-center justify-between mb-3">
-    <h3 class="text-sm font-semibold text-slate-400">Últimos gastos</h3>
-    <a :href="`/expenses/?period=${selectedPeriod}`" class="text-xs text-sky-400 hover:text-sky-300 transition">Ver
+    <h3 class="flex items-center gap-2 text-sm font-semibold text-slate-300">
+      <span class="w-6 h-6 rounded-md bg-slate-800 text-slate-400 flex items-center justify-center shrink-0" aria-hidden="true">
+        <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+          stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z" /><path d="M9 8h6M9 12h6" /></svg>
+      </span>
+      Últimos gastos
+    </h3>
+    <a :href="`/expenses/?period=${selectedPeriod}`" class="text-xs text-blue-400 hover:text-blue-300 transition">Ver
       todos →</a>
   </div>
   <div class="space-y-2 mb-4">
     <template x-if="recentExpenses.length === 0">
       <div class="bg-slate-900 border border-dashed border-slate-700 rounded-2xl p-6 text-center">
-        <p class="text-slate-600 text-sm">Sin gastos en este periodo</p>
-        <a href="/expenses/nuevo" class="text-sky-400 text-sm font-medium mt-2 block">+ Registrar gasto</a>
+        <p class="text-slate-400 text-sm">Sin gastos en este periodo</p>
+        <a href="/expenses/nuevo" class="text-blue-400 text-sm font-medium mt-2 block">+ Registrar gasto</a>
       </div>
     </template>
     <template x-for="exp in recentExpenses" :key="exp.id">
       <div class="bg-slate-900 border border-slate-800 rounded-xl px-4 py-3
                         flex items-center justify-between">
         <div class="flex items-center gap-3 min-w-0">
-          <div class="w-9 h-9 rounded-full bg-slate-800 flex items-center
-                                justify-center text-base shrink-0" x-text="catEmoji(exp.category)"></div>
+          <div class="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center
+                                justify-center text-xs font-semibold text-slate-400 shrink-0" x-text="catInitial(exp.category)" aria-hidden="true"></div>
           <div class="min-w-0">
             <p class="text-sm font-medium text-white truncate" x-text="exp.merchant || 'Sin nombre'"></p>
             <div class="flex items-center gap-1.5 mt-0.5">
-              <span class="text-xs text-slate-500" x-text="exp.category || 'Sin categoría'"></span>
+              <span class="text-xs text-slate-400" x-text="exp.category || 'Sin categoría'"></span>
               <template x-if="exp.source !== 'manual'">
                 <span class="text-xs px-1.5 py-0.5 rounded-md" :class="{
                                           'bg-violet-500/10 text-violet-400': exp.source==='ocr',
-                                          'bg-emerald-500/10 text-emerald-400': exp.source==='subscription',
+                                          'bg-green-500/10 text-green-400': exp.source==='subscription',
                                           'bg-amber-500/10 text-amber-400': exp.source==='installment'
                                       }" x-text="{ocr:'OCR',subscription:'Sub',installment:'MSI'}[exp.source]">
                 </span>
@@ -385,10 +493,12 @@
         </div>
         <div class="text-right shrink-0 ml-3">
           <p class="text-sm font-semibold text-white" x-text="fmt(exp.amount)"></p>
-          <p class="text-xs text-slate-500" x-text="exp.expense_date"></p>
+          <p class="text-xs text-slate-400" x-text="exp.expense_date"></p>
         </div>
       </div>
     </template>
+  </div>
+  </div>
   </div>
 
 </div>
@@ -484,8 +594,10 @@
       },
 
       renderCharts() {
-        const colors = ['#0ea5e9', '#8b5cf6', '#10b981', '#f59e0b',
-          '#ef4444', '#ec4899', '#6366f1', '#64748b']
+        // Paleta alineada al estilo "financial-dashboard": profit #22c55e (green-500),
+        // loss #ef4444 (red-500); resto de categorías en tonos distinguibles y accesibles.
+        const colors = ['#3b82f6', '#8b5cf6', '#22c55e', '#f59e0b',
+          '#ef4444', '#ec4899', '#06b6d4', '#64748b']
 
         if (this.hasCategories) {
           Plotly.newPlot('chart-category', [{
@@ -493,7 +605,7 @@
             values: Object.values(this.categoryTotals),
             labels: Object.keys(this.categoryTotals),
             textinfo: 'none',
-            marker: { colors },
+            marker: { colors, line: { color: '#0f172a', width: 2 } },
             hovertemplate: '<b>%{label}</b><br>$%{value:,.2f}<br>%{percent}<extra></extra>',
           }], {
             paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
@@ -515,7 +627,7 @@
           {
             type: 'bar', x: periods, y: incomeAmounts,
             name: 'Ingresos',
-            marker: { color: '#facc15' },
+            marker: { color: '#22c55e' },
             hovertemplate: '$%{y:,.2f}<extra></extra>',
           },
           {
@@ -529,9 +641,9 @@
           paper_bgcolor: 'transparent', plot_bgcolor: 'transparent',
           margin: { t: 30, b: 30, l: 50, r: 10 },
           legend: { font: { color: '#94a3b8', size: 11 }, orientation: 'h', x: 0, y: 1.2, automargin: true },
-          xaxis: { color: '#64748b', gridcolor: 'transparent', tickfont: { size: 11 } },
+          xaxis: { color: '#94a3b8', gridcolor: 'transparent', tickfont: { size: 11 } },
           yaxis: {
-            color: '#64748b', gridcolor: '#1e293b',
+            color: '#94a3b8', gridcolor: '#1e293b',
             tickprefix: '$', tickfont: { size: 10 }
           },
         }, { responsive: true, displayModeBar: false })
@@ -541,20 +653,10 @@
         return '$' + (val || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })
       },
 
-      catEmoji(cat) {
-        const map = {
-          'Alimentación': '🍔', 'Transporte': '🚗', 'Entretenimiento': '🎬', 'Inversión': '📈',
-          'Salud': '💊', 'Ropa': '👕', 'Tecnología': '💻', 'Hogar': '🏠', 'Educación': '🎓', 'Cita Bby': '💑',
-          'Vacaciones': '🌴', 'Servicios': '⚡', 'Regalos': '🎁', 'Seguros/Mtto': '🛡️', 'Otro': '📦', "Gasolina": "⛽",
-          'Mandado': '🛒',
-          'Carro': '🚗',
-          'Tecnología': '💻',
-          'Hogar': '🏠',
-          'Educación': '🎓',
-          'Cita Bby': '💑',
-          'Vacaciones': '🌴',
-        }
-        return map[cat] || '📦'
+      // Sin emojis como iconos (regla de accesibilidad/estilo): inicial de la
+      // categoría sobre una insignia neutra en vez de un glifo emoji.
+      catInitial(cat) {
+        return cat ? cat.trim().charAt(0).toUpperCase() : '•'
       }
     }
   }

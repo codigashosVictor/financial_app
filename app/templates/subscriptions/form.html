@@ -59,7 +59,7 @@
       <label class="block text-xs font-medium text-slate-400 mb-3">Categoría</label>
       <div class="grid grid-cols-4 gap-2">
         {% for cat, emoji in [('Alimentación','🍔'),('Transporte','🚗'),('Entretenimiento','🎬'),
-        ('Salud','💊'),('Ropa','👕'),('Tecnología','💻'),('Hogar','🏠'),('Otro','📦')] %}
+        ('Salud','💊'),('Ropa','👕'),('Tecnología','💻'),('Hogar','🏠'),('Café','☕'),('Otro','📦')] %}
         <label class="cursor-pointer">
           <input type="radio" name="category" value="{{ cat }}" class="sr-only" {% if cat=='Entretenimiento' %}checked{%
             endif %} x-on:change="selected = '{{ cat }}'">

@@ -14,7 +14,7 @@ Formato exacto requerido:
   "date": "YYYY-MM-DD",
   "amount": 0.00,
   "tax_amount": 0.00,
-  "category": "una de estas exactas: Alimentación|Transporte|Entretenimiento|Salud|Ropa|Tecnología|Hogar|Otro",
+  "category": "una de estas exactas: Alimentación|Transporte|Entretenimiento|Salud|Ropa|Tecnología|Hogar|Café|Otro",
   "confidence": 0.95
 }
 
